@@ -2,21 +2,19 @@ import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 
-
-export default function HomeScreen() {
+export default function RewardsScreen() {
   return (
     <AppContainer>
       <View style={styles.center}>
-        <GeckosText variant="title">Geckos</GeckosText>
-        <GeckosText variant="subtitle">
-          Tex-Mex • Order ahead • Pickup & Delivery
+        <GeckosText variant="title">Rewards</GeckosText>
+        <GeckosText variant="muted">
+          Points, offers, and loyalty perks coming soon.
         </GeckosText>
 
-        <View style={styles.buttonWrap}>
-          <PrimaryButton label="View Menu" onPress={() => router.push("/(tabs)/menu")} />
-        </View>
+        <View style={styles.spacer} />
+
+        <PrimaryButton label="Join Rewards" onPress={() => console.log("Join Rewards")} />
       </View>
     </AppContainer>
   );
@@ -28,8 +26,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonWrap: {
-    marginTop: 24,
-    width: "100%",
+  spacer: {
+    height: 16,
   },
 });
