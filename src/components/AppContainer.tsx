@@ -5,12 +5,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type AppContainerProps = {
   children: ReactNode;
+  noPadding?: boolean;
+  noBottomSafeArea?: boolean;
 };
 
-export function AppContainer({ children }: AppContainerProps) {
+export function AppContainer({
+  children,
+  noPadding = false,
+  noBottomSafeArea = false,
+}: AppContainerProps) {
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>{children}</View>
+    <SafeAreaView
+      style={styles.safe}
+      edges={noBottomSafeArea ? ["top", "left", "right"] : ["top", "bottom", "left", "right"]}
+    >
+      <View style={[styles.container, noPadding && styles.noPadding]}>{children}</View>
     </SafeAreaView>
   );
 }
@@ -23,5 +32,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
+  },
+  noPadding: {
+    padding: 0,
   },
 });

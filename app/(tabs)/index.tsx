@@ -1,9 +1,8 @@
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
-import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-
+import { StyleSheet, View } from "react-native";
 
 export default function HomeScreen() {
   return (
@@ -15,7 +14,10 @@ export default function HomeScreen() {
         </GeckosText>
 
         <View style={styles.buttonWrap}>
-          <PrimaryButton label="View Menu" onPress={() => router.push("/(tabs)/menu")} />
+          <PrimaryButton
+            label="View Menu"
+            onPress={() => router.push("/(tabs)/menu")}
+          />
         </View>
       </View>
     </AppContainer>
