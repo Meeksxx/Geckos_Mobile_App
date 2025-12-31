@@ -1,26 +1,54 @@
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
-import { StyleSheet, View } from "react-native";
+import { GeckosColors } from "@/src/theme/colors";
+import { Stack } from "expo-router";
+import { Image, StyleSheet, View } from "react-native";
 
 export default function RewardsScreen() {
   return (
-    <AppContainer>
-      <View style={styles.center}>
-        <GeckosText variant="title">Rewards</GeckosText>
-        <GeckosText variant="muted">
-          Points, offers, and loyalty perks coming soon.
-        </GeckosText>
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitleAlign: "center",
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: GeckosColors.background },
+          headerTitle: () => (
+            <Image
+              source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
 
-        <View style={styles.spacer} />
+      <AppContainer>
+        <View style={styles.center}>
+          <GeckosText variant="title">Rewards</GeckosText>
+          <GeckosText variant="muted">
+            Points, offers, and loyalty perks coming soon.
+          </GeckosText>
 
-        <PrimaryButton label="Join Rewards" onPress={() => console.log("Join Rewards")} />
-      </View>
-    </AppContainer>
+          <View style={styles.spacer} />
+
+          <PrimaryButton
+            label="Join Rewards"
+            onPress={() => console.log("Join Rewards")}
+          />
+        </View>
+      </AppContainer>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  headerLogo: {
+    height: 28,
+    width: 150,
+  },
+
   center: {
     flex: 1,
     alignItems: "center",

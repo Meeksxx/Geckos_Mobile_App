@@ -1,13 +1,27 @@
-import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
 import React from "react";
+import { GeckosColors } from "@/src/theme/colors";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2E7D32", // Gecko green
+
+        // ✅ Dark tab bar theme
+        tabBarStyle: {
+          backgroundColor: GeckosColors.background,
+          borderTopColor: GeckosColors.border,
+        },
+
+        // ✅ Accent-only behavior
+        tabBarActiveTintColor: GeckosColors.geckoGreen,
+        tabBarInactiveTintColor: GeckosColors.mutedText,
+
+        tabBarLabelStyle: {
+          fontWeight: "600",
+        },
       }}
     >
       <Tabs.Screen
@@ -39,8 +53,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      
 
       <Tabs.Screen
         name="order"

@@ -1,19 +1,20 @@
 // src/theme/colors.ts
 export const GeckosColors = {
-  // Brand (unchanged – keep these for accents later)
+  // Brand (unchanged – keep these for accents)
   geckoGreen: "#148f1aff",
   lime: "#c1ff05ff",
   chiliRed: "#C62828",
   crema: "#FFF3E0",
 
-  // UI neutrals (TEMP: clean white theme)
-  background: "#FFFFFF",
-  surface: "#F8F9F8",
-  text: "#111111",
-  mutedText: "#6B7280",
-  border: "#E5E7EB",
+  // UI neutrals (DARK THEME)
+  // Jocy’s-inspired: near-black background, slightly lighter surfaces
+  background: "#0B0C0F",
+  surface: "#14171B",
+  text: "#F2F3F5",
+  mutedText: "#A3A9B3",
+  border: "#2A2F36",
 
-  // States
+  // States (kept; these read well on dark)
   success: "#2E7D32",
   warning: "#F9A825",
   error: "#C62828",
