@@ -9,10 +9,13 @@
     "newArchEnabled": true,
 
     "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FF00FF"
-    },
+  "image": "./assets/images/splash1.png",
+  "resizeMode": "contain",
+  "imageWidth": 620,
+  "backgroundColor": "#0B0C0F"
+},
+
+
 
     "ios": {
       "supportsTablet": true
@@ -33,14 +36,15 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash.png",
-          "imageWidth": 220,
-          "resizeMode": "contain",
-          "backgroundColor": "#FF00FF"
-        }
-      ]
+  "expo-splash-screen",
+  {
+    "image": "./assets/images/splash1.png",
+    "imageWidth": 620,
+    "resizeMode": "contain",
+    "backgroundColor": "#0B0C0F"
+  }
+]
+
     ],
 
     "experiments": {
