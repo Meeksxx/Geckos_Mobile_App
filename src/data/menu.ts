@@ -163,7 +163,7 @@ export const MENU_ITEMS: MenuItem[] = [
   price: 11.99,
 },
 {
-  id: "chicken-fajita-salad",
+  id: "fajita-salad",
   categoryId: "ensalada",
   name: "Chicken Fajita Salad",
   description:
