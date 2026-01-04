@@ -9,19 +9,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
 
-        // ✅ Dark tab bar theme
         tabBarStyle: {
           backgroundColor: GeckosColors.background,
           borderTopColor: GeckosColors.border,
         },
 
-        // ✅ Accent-only behavior
         tabBarActiveTintColor: GeckosColors.geckoGreen,
         tabBarInactiveTintColor: GeckosColors.mutedText,
 
-        tabBarLabelStyle: {
-          fontWeight: "600",
-        },
+        tabBarLabelStyle: { fontWeight: "600" },
       }}
     >
       <Tabs.Screen

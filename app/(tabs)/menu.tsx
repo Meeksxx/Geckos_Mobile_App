@@ -4,9 +4,10 @@ import { MENU_CATEGORIES, MenuCategory } from "@/src/data/menu";
 import { GeckosColors } from "@/src/theme/colors";
 import { Stack, router } from "expo-router";
 import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CATEGORY_IMAGES } from "@/src/constants/category-images";
 
-const HEADER_HEIGHT = 52; // 🔑 pinch it (try 56; if still too tall, try 52)
+const HEADER_BAR_HEIGHT = 48; // ✅ pinch amount (56–60 sweet spot)
 
 function CategoryRow({ item }: { item: MenuCategory }) {
   return (
@@ -32,6 +33,9 @@ function CategoryRow({ item }: { item: MenuCategory }) {
 }
 
 export default function MenuScreen() {
+  const insets = useSafeAreaInsets();
+  const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
+
   return (
     <>
       <Stack.Screen
@@ -40,23 +44,23 @@ export default function MenuScreen() {
           headerTitleAlign: "center",
           headerShadowVisible: false,
 
-          // ✅ pinch header background height without touching logo sizing
-          headerStyle: {
-            backgroundColor: GeckosColors.background,
-            height: HEADER_HEIGHT,
-          },
+          // ✅ typed-safe “pinch”: transparent header + custom background
+          headerTransparent: true,
+          headerStyle: { backgroundColor: "transparent" },
+          headerBackground: () => (
+            <View style={[styles.headerBg, { height: headerBgHeight }]} />
+          ),
 
-  // ✅ logo stays exactly as before
-  headerTitle: () => (
-    <View style={styles.headerTitleWrap}>
-      <Image
-        source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
-        style={styles.headerLogo}
-        resizeMode="contain"
-      />
-    </View>
-  ),
-
+          // ✅ logo stays same
+          headerTitle: () => (
+            <View style={styles.headerTitleWrap}>
+              <Image
+                source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
+            </View>
+          ),
 
           headerLargeTitle: false,
         }}
@@ -68,14 +72,20 @@ export default function MenuScreen() {
           keyExtractor={(c) => c.id}
           renderItem={({ item }) => <CategoryRow item={item} />}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={styles.listContent}
+
+          // ✅ push content below our custom header bg
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingTop: headerBgHeight - 75 }, // keep your “lift” behavior
+          ]}
+
           ListHeaderComponent={
             <GeckosText variant="title" style={styles.pageTitle}>
               Menu
             </GeckosText>
           }
-          contentInsetAdjustmentBehavior="automatic"
-          automaticallyAdjustContentInsets={true}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
         />
       </AppContainer>
     </>
@@ -83,10 +93,16 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBg: {
+    backgroundColor: GeckosColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: GeckosColors.background,
+  },
+
   headerTitleWrap: {
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 38.5,
+    paddingTop: 1, // ✅ keep same “lower the logo a hair” value
   },
 
   headerLogo: {
@@ -99,7 +115,7 @@ const styles = StyleSheet.create({
     color: GeckosColors.text,
     letterSpacing: 0.5,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 15,
     paddingBottom: 12,
   },
 
