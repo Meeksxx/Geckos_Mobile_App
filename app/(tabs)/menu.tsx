@@ -6,13 +6,19 @@ import { Stack, router } from "expo-router";
 import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
 import { CATEGORY_IMAGES } from "@/src/constants/category-images";
 
+const HEADER_HEIGHT = 52; // 🔑 pinch it (try 56; if still too tall, try 52)
+
 function CategoryRow({ item }: { item: MenuCategory }) {
   return (
     <Pressable
       onPress={() => router.push(`/category/${item.id}` as any)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <Image source={CATEGORY_IMAGES[item.id]} style={styles.imageBlock} resizeMode="cover" />
+      <Image
+        source={CATEGORY_IMAGES[item.id]}
+        style={styles.imageBlock}
+        resizeMode="cover"
+      />
 
       <View style={styles.textBlock}>
         <GeckosText style={styles.rowTitle}>{item.title.toUpperCase()}</GeckosText>
@@ -33,15 +39,26 @@ export default function MenuScreen() {
           headerShown: true,
           headerTitleAlign: "center",
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: GeckosColors.background },
-          headerTitle: () => (
-            <Image
-              source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
 
-              style={styles.headerLogo}
-              resizeMode="contain"
-            />
-          ),
+          // ✅ pinch header background height without touching logo sizing
+          headerStyle: {
+            backgroundColor: GeckosColors.background,
+            height: HEADER_HEIGHT,
+          },
+
+  // ✅ logo stays exactly as before
+  headerTitle: () => (
+    <View style={styles.headerTitleWrap}>
+      <Image
+        source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
+        style={styles.headerLogo}
+        resizeMode="contain"
+      />
+    </View>
+  ),
+
+
+          headerLargeTitle: false,
         }}
       />
 
@@ -57,8 +74,8 @@ export default function MenuScreen() {
               Menu
             </GeckosText>
           }
-          contentInsetAdjustmentBehavior="never"
-          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="automatic"
+          automaticallyAdjustContentInsets={true}
         />
       </AppContainer>
     </>
@@ -66,6 +83,12 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerTitleWrap: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 38.5,
+  },
+
   headerLogo: {
     height: 28,
     width: 150,
@@ -73,7 +96,7 @@ const styles = StyleSheet.create({
 
   pageTitle: {
     fontSize: 34,
-    color: GeckosColors.text, // ✅ accent-only
+    color: GeckosColors.text,
     letterSpacing: 0.5,
     paddingHorizontal: 24,
     paddingTop: 24,
@@ -95,13 +118,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 92,
 
-    // Slightly raised feel (subtle)
     shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
+
   pressed: {
     opacity: 0.92,
   },
@@ -120,7 +143,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: GeckosColors.text, // ✅ accent-only
+    color: GeckosColors.text,
     letterSpacing: 1,
   },
 

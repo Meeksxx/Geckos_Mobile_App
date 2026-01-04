@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, Image, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
@@ -20,15 +21,15 @@ import { KIDS_IMAGES } from "@/src/constants/Kids-image";
 import { MENU_CATEGORIES, MENU_ITEMS, MenuItem } from "@/src/data/menu";
 import { GeckosColors } from "@/src/theme/colors";
 
+const PINCHED_BAR_HEIGHT = 52; // ✅ your “make it 7 not 10” height
+
 /**
  * Central category → image map registry
- * Add new categories here ONLY
  */
 const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
   beverage: BEVERAGE_IMAGES,
   appetizers: APPETIZER_IMAGES,
   ensalada: ENSALADA_IMAGES,
-
   "lunch-specials": LUNCH_SPECIALS_IMAGES,
   "local-favorites": LOCAL_FAVORITES_IMAGES,
   "house-specialties": HOUSE_SPECIALTIES_IMAGES,
@@ -40,29 +41,21 @@ const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
   kids: KIDS_IMAGES,
 };
 
-
-function ItemRow({
-  item,
-  categoryId,
-}: {
-  item: MenuItem;
-  categoryId: string;
-}) {
+function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
   const imageMap = IMAGE_MAP_BY_CATEGORY[categoryId];
   const image = imageMap?.[item.id];
+  const showImageSlot = Boolean(imageMap);
 
   return (
     <View style={styles.itemRow}>
-      {image ? (
-        <Image source={image} style={styles.itemImage} resizeMode="cover" />
-      ) : imageMap ? (
-        <View style={styles.missingImage}>
-          <GeckosText style={styles.missingImageText}>
-            Missing image:
-            {"\n"}
-            {item.id}
-          </GeckosText>
-        </View>
+      {showImageSlot ? (
+        image ? (
+          <Image source={image} style={styles.thumb} resizeMode="cover" />
+        ) : (
+          <View style={styles.missingThumb}>
+            <GeckosText style={styles.missingThumbText}>No photo</GeckosText>
+          </View>
+        )
       ) : null}
 
       <View style={styles.itemContent}>
@@ -89,6 +82,8 @@ function ItemRow({
 }
 
 export default function CategoryScreen() {
+  const insets = useSafeAreaInsets();
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const categoryId = String(id);
 
@@ -97,6 +92,9 @@ export default function CategoryScreen() {
 
   const items = MENU_ITEMS.filter((m) => m.categoryId === categoryId);
 
+  // ✅ This is the visible black bar height (safe-area + pinched height)
+  const headerBgHeight = insets.top + PINCHED_BAR_HEIGHT;
+
   return (
     <>
       <Stack.Screen
@@ -104,13 +102,24 @@ export default function CategoryScreen() {
           headerShown: true,
           title: categoryTitle,
           headerBackTitle: "Back",
-          headerStyle: { backgroundColor: GeckosColors.background },
+          headerTitleAlign: "center",
+          headerShadowVisible: false,
+
+          // ✅ Make the real header transparent/overlay…
+          headerTransparent: true,
+          headerStyle: { backgroundColor: "transparent" },
+
+          // ✅ …then draw OUR OWN shorter black background
+          headerBackground: () => (
+            <View style={[styles.headerBg, { height: headerBgHeight }]} />
+          ),
+
           headerTitleStyle: {
-            color: GeckosColors.geckoGreen,
+            color: GeckosColors.text,
             fontWeight: "800",
           },
-          headerTintColor: GeckosColors.geckoGreen,
-          headerShadowVisible: false,
+          headerTintColor: GeckosColors.text,
+          headerLargeTitle: false,
         }}
       />
 
@@ -138,10 +147,13 @@ export default function CategoryScreen() {
         <FlatList
           data={items}
           keyExtractor={(i) => i.id}
-          renderItem={({ item }) => (
-            <ItemRow item={item} categoryId={categoryId} />
-          )}
-          contentContainerStyle={styles.list}
+          renderItem={({ item }) => <ItemRow item={item} categoryId={categoryId} />}
+
+          // ✅ push list content below our custom bar
+          contentContainerStyle={[
+            styles.list,
+            { paddingTop: headerBgHeight + 16 },
+          ]}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <GeckosText variant="muted" style={styles.empty}>
@@ -156,10 +168,19 @@ export default function CategoryScreen() {
   );
 }
 
+const THUMB_WIDTH = 110;
+const ROW_MIN_HEIGHT = 92;
+
 const styles = StyleSheet.create({
+  headerBg: {
+    backgroundColor: GeckosColors.background, // your black/dark color
+    borderBottomWidth: 1,
+    borderBottomColor: GeckosColors.border,
+  },
+
   list: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    // paddingTop overridden dynamically
     paddingBottom: 20,
   },
 
@@ -169,30 +190,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GeckosColors.border,
     overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "stretch",
+    minHeight: ROW_MIN_HEIGHT,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
 
-  itemImage: {
-    width: "100%",
-    height: 140,
+  thumb: {
+    width: THUMB_WIDTH,
+    height: "100%",
+    backgroundColor: "#1B241E",
   },
 
-  missingImage: {
-    width: "100%",
-    height: 140,
+  missingThumb: {
+    width: THUMB_WIDTH,
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#1F1F1F",
   },
-
-  missingImageText: {
+  missingThumbText: {
     color: "#F2F3F5",
     fontWeight: "700",
     textAlign: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
   },
 
   itemContent: {
-    padding: 12,
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
 
   itemTop: {
@@ -214,7 +246,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: GeckosColors.text,
     textAlign: "right",
-    maxWidth: 150,
+    maxWidth: 160,
   },
 
   itemDesc: {
@@ -222,9 +254,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  separator: {
-    height: 8,
-  },
+  separator: { height: 12 },
 
   empty: {
     marginTop: 16,
