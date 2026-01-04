@@ -316,14 +316,14 @@ export const MENU_ITEMS: MenuItem[] = [
     "Three soft corn tortillas filled with fajita chicken, beef or shrimp. Topped with onions & cilantro. Served with rice & charro beans.",
   priceText: "Chicken 12.99 | Beef 16.99 | Shrimp 16.99",
 },
-{
+/*{
   id: "carnitas",
   categoryId: "local-favorites",
   name: "Carnitas",
   description:
     "Three smoked pork tacos topped with salsa verde, cilantro & onions. Served with rice & charro beans.",
   price: 13.99,
-},
+},*/
 // =====================
 // AMERICAN FOOD
 // =====================

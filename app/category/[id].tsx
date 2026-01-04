@@ -4,9 +4,18 @@ import { FlatList, Image, StyleSheet, View } from "react-native";
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 
-import { BEVERAGE_IMAGES } from "@/src/constants/Beverages-image";
 import { APPETIZER_IMAGES } from "@/src/constants/Appetizers-image";
+import { BEVERAGE_IMAGES } from "@/src/constants/Beverages-image";
 import { ENSALADA_IMAGES } from "@/src/constants/Ensaladas-image";
+import { LUNCH_SPECIALS_IMAGES } from "@/src/constants/Lunch-Specials-image";
+import { LOCAL_FAVORITES_IMAGES } from "@/src/constants/Local-Favorites-image";
+import { HOUSE_SPECIALTIES_IMAGES } from "@/src/constants/House-Specialties-image";
+import { AMERICAN_FOOD_IMAGES } from "@/src/constants/American-Food-image";
+import { FAJITAS_IMAGES } from "@/src/constants/Fajitas-image";
+import { NACHOS_IMAGES } from "@/src/constants/Nachos-image";
+import { QUESADILLAS_IMAGES } from "@/src/constants/Quesadillas-image";
+import { DESSERT_IMAGES } from "@/src/constants/Dessert-image";
+import { KIDS_IMAGES } from "@/src/constants/Kids-image";
 
 import { MENU_CATEGORIES, MENU_ITEMS, MenuItem } from "@/src/data/menu";
 import { GeckosColors } from "@/src/theme/colors";
@@ -19,7 +28,18 @@ const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
   beverage: BEVERAGE_IMAGES,
   appetizers: APPETIZER_IMAGES,
   ensalada: ENSALADA_IMAGES,
+
+  "lunch-specials": LUNCH_SPECIALS_IMAGES,
+  "local-favorites": LOCAL_FAVORITES_IMAGES,
+  "house-specialties": HOUSE_SPECIALTIES_IMAGES,
+  "american-food": AMERICAN_FOOD_IMAGES,
+  fajitas: FAJITAS_IMAGES,
+  nachos: NACHOS_IMAGES,
+  quesadillas: QUESADILLAS_IMAGES,
+  dessert: DESSERT_IMAGES,
+  kids: KIDS_IMAGES,
 };
+
 
 function ItemRow({
   item,
