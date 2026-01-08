@@ -21,44 +21,46 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
+  name="index"
+  options={{
+    title: "Home",
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="home" size={size} color={color} />
+    ),
+  }}
+/>
 
-      <Tabs.Screen
-        name="menu"
-        options={{
-          title: "Menu",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="restaurant" size={size} color={color} />
-          ),
-        }}
-      />
+<Tabs.Screen
+  name="menu"
+  options={{
+    title: "Menu",
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="restaurant" size={size} color={color} />
+    ),
+  }}
+/>
 
-      <Tabs.Screen
-        name="rewards"
-        options={{
-          title: "Rewards",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="star" size={size} color={color} />
-          ),
-        }}
-      />
+<Tabs.Screen
+  name="order"
+  options={{
+    title: "Order",
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="receipt" size={size} color={color} />
+    ),
+  }}
+/>
 
-      <Tabs.Screen
-        name="order"
-        options={{
-          title: "Order",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={size} color={color} />
-          ),
-        }}
-      />
+<Tabs.Screen
+  name="more"
+  options={{
+    title: "More",
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="grid" size={size} color={color} />
+    ),
+  }}
+/>
+
+
     </Tabs>
   );
 }

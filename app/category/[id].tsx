@@ -1,6 +1,6 @@
 // app/category/[id].tsx
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { Stack, useLocalSearchParams, router } from "expo-router";
 import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

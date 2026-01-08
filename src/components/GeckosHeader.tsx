@@ -25,7 +25,7 @@ export function GeckosHeader({ title, subtitle, showBack = false }: GeckosHeader
         ) : null}
 
         <Image
-          source={require("@/assets/images/logo/gecko.jpg")}
+          source={require("@/assets/images/logo/gecko.png")}
           style={styles.logo}
           resizeMode="contain"
         />
