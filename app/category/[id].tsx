@@ -195,8 +195,6 @@ export default function CategoryScreen() {
 
               {categoryId === "lunch-specials" && (
                 <View style={styles.lunchInfo}>
-                  
-
                   <GeckosText style={styles.sectionTitle}>Choose from:</GeckosText>
                   <GeckosText variant="muted">
                     Cheese Enchilada, Chicken Enchilada, Beef Enchilada, Crispy Taco,
@@ -206,7 +204,8 @@ export default function CategoryScreen() {
 
                   <GeckosText style={styles.sectionTitle}>Sauce Choices:</GeckosText>
                   <GeckosText variant="muted">
-                    Chili, Ranchero, Sour Cream Sauce, Yellow Queso, White Queso (+$0.50)
+                    Chili, Ranchero, Sour Cream Sauce, Yellow Queso, White Queso
+                    (+$0.50)
                   </GeckosText>
                 </View>
               )}
@@ -261,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     color: GeckosColors.text,
     letterSpacing: 0.5,
-    paddingBottom: 10, // ✅ more padding below title
+    paddingBottom: 10,
   },
 
   lunchInfo: {
@@ -285,7 +284,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "stretch",
-    height: ROW_HEIGHT, // ✅ taller rows
+    height: ROW_HEIGHT,
     shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -299,11 +298,11 @@ const styles = StyleSheet.create({
   },
   thumb: {
     width: THUMB_WIDTH,
-    height: ROW_HEIGHT, // ✅ match row height
+    height: ROW_HEIGHT,
   },
   missingThumb: {
     width: THUMB_WIDTH,
-    height: ROW_HEIGHT, // ✅ match row height
+    height: ROW_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#1F1F1F",
@@ -317,15 +316,17 @@ const styles = StyleSheet.create({
 
   itemContent: {
     flex: 1,
-    paddingVertical: 14, // ✅ more vertical breathing room
+    paddingVertical: 14,
     paddingHorizontal: 12,
     justifyContent: "center",
+    minWidth: 0,
   },
 
   itemTop: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
+    minWidth: 0, // ✅ key for flex rows
   },
 
   itemName: {
@@ -335,15 +336,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    paddingRight: 6,
-    lineHeight: 20, // ✅ cleaner wrap
+    paddingRight: 0, // ✅ remove extra squeeze
+    lineHeight: 20,
   },
 
+  // ✅ FIX: no hard 120px column. Cap it instead.
   priceWrap: {
-    width: 120,
     alignItems: "flex-end",
     justifyContent: "flex-start",
     paddingTop: 1,
+    flexShrink: 0,
+    minWidth: 78,
+    maxWidth: 110,
   },
 
   priceLine: {

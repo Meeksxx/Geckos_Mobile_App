@@ -1,188 +1,221 @@
-import { AppContainer } from "@/src/components/AppContainer";
-import { GeckosText } from "@/src/components/GeckosText";
-import { PrimaryButton } from "@/src/components/PrimaryButton";
-import { GeckosColors } from "@/src/theme/colors";
+// app/(tabs)/index.tsx
+import React from "react";
+import {
+  Image,
+  ImageBackground,
+  Linking,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Stack, router } from "expo-router";
-import { Image, ImageBackground, Linking, Pressable, StyleSheet, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
+import { GeckosText } from "@/src/components/GeckosText";
+
+const HEADER_BAR_HEIGHT = 48;
+
+const ADDRESS_LINE = "1006 HWY 70 E • Kingston, OK 73439";
+const PHONE_DISPLAY = "580-564-9599";
+const PHONE_DIAL = "5805649599";
+
+function PillButton({
+  label,
+  onPress,
+  variant,
+}: {
+  label: string;
+  onPress: () => void;
+  variant: "green" | "tan" | "red";
+}) {
+  const bg =
+    variant === "green"
+      ? styles.pillGreen
+      : variant === "tan"
+      ? styles.pillTan
+      : styles.pillRed;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.pill, bg, pressed ? styles.pressed : null]}
+    >
+      <GeckosText style={styles.pillText}>{label}</GeckosText>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
-  const onCall = () => {
-    Linking.openURL("tel:5805649599");
-  };
+  const insets = useSafeAreaInsets();
+  const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
+
+  const onCall = () => Linking.openURL(`tel:${PHONE_DIAL}`);
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitleAlign: "center",
-          headerShadowVisible: false,
-          headerTransparent: true,
-          headerStyle: { backgroundColor: "transparent" },
-          headerTitle: () => (
-            <Image
-              source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
-              style={styles.headerLogo}
-              resizeMode="contain"
-            />
-          ),
-        }}
-      />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <AppContainer noPadding noBottomSafeArea>
+      {/* ✅ IMPORTANT: do NOT include bottom edge here, Tabs already handles it */}
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <ImageBackground
-          source={require("../../assets/home/hero.jpg")} // Your beautiful patio/entrance photo
-          style={styles.heroBackground}
+          source={require("../../assets/home/hero.jpg")}
+          style={styles.bg}
           resizeMode="cover"
         >
-          <View style={styles.heroOverlay}>
-            {/* Full Logo */}
-            <Image
-              source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
-              style={styles.heroLogo}
-              resizeMode="contain"
-            />
+          {/* Overlay layers */}
+          <View style={styles.overlayTopDark} />
+          <View style={styles.overlayWarmBottom} />
 
-            {/* Greeting */}
-            <GeckosText style={styles.heroGreeting}>¡Hola!</GeckosText>
-            <GeckosText style={styles.heroSubGreeting}>
-              Bienvenido a Gecko's
-            </GeckosText>
-
-            {/* Info Card */}
-            <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={20} color={GeckosColors.geckoGreen} />
-                <GeckosText style={styles.infoText}>
-                  1006 HWY 70 E • Kingston, OK 73439
-                </GeckosText>
-              </View>
-
-              <Pressable onPress={onCall} style={styles.infoRow}>
-                <Ionicons name="call-outline" size={20} color={GeckosColors.geckoGreen} />
-                <GeckosText style={styles.infoText}>580.564.9599</GeckosText>
-              </Pressable>
-
-              <View style={styles.hoursRow}>
-                <Ionicons name="time-outline" size={20} color={GeckosColors.geckoGreen} />
-                <View>
-                  <GeckosText style={styles.hoursTitle}>Store Hours</GeckosText>
-                  <GeckosText style={styles.hoursText}>Open Daily: 11 AM - 10 PM</GeckosText>
-                </View>
-              </View>
+          <View style={[styles.content, { paddingTop: headerBgHeight + 10 }]}>
+            {/* Brand */}
+            <View style={styles.brandBlock}>
+              <Image
+                source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
 
-            {/* Professional Buttons */}
-            <View style={styles.buttonContainer}>
-              <PrimaryButton
+            {/* Spacer pushes buttons/info down without creating gaps */}
+            <View style={{ flex: 1 }} />
+
+            {/* CTAs */}
+            <View style={styles.ctaStack}>
+              <PillButton
                 label="View Menu"
+                variant="green"
                 onPress={() => router.push("/(tabs)/menu")}
               />
-              <View style={styles.buttonSpacer} />
-              <PrimaryButton
-                label="Rewards & More"
-                onPress={() => router.push("/(tabs)/more")}
+              <PillButton
+                label="Order Online"
+                variant="tan"
+                onPress={() => router.push("/(tabs)/order")}
               />
-              <View style={styles.buttonSpacer} />
-              <PrimaryButton label="Call Gecko's" onPress={onCall} />
+              <PillButton label="Call Gecko’s" variant="red" onPress={onCall} />
+            </View>
+
+            {/* Bottom info */}
+            <View
+              style={[
+                styles.bottomInfo,
+                {
+                  // small breathing room, NOT a safe-area pad (Tabs already does that)
+                  paddingBottom: 10,
+                },
+              ]}
+            >
+              <View style={styles.infoRow}>
+                <Ionicons name="location-outline" size={16} color="#F2E7DA" />
+                <GeckosText style={styles.infoText}>{ADDRESS_LINE}</GeckosText>
+              </View>
+
+              <Pressable
+                onPress={onCall}
+                style={({ pressed }) => [styles.infoRow, pressed ? styles.pressed : null]}
+              >
+                <Ionicons name="call-outline" size={16} color="#F2E7DA" />
+                <GeckosText style={styles.infoText}>{PHONE_DISPLAY}</GeckosText>
+              </Pressable>
             </View>
           </View>
         </ImageBackground>
-      </AppContainer>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  headerLogo: {
-    height: 28,
-    width: 150,
+  root: { flex: 1, backgroundColor: "#000" },
+  bg: { flex: 1, width: "100%" },
+
+  overlayTopDark: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  overlayWarmBottom: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(180, 147, 40, 0.02)",
   },
 
-  heroBackground: {
+  content: {
     flex: 1,
+    paddingHorizontal: 22,
+  },
+
+  brandBlock: {
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  // ✅ bigger logo like you wanted
+  logo: {
+    width: 380,
+    height: 160,
+  },
+
+  ctaStack: {
+    gap: 14,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+  },
+
+  pill: {
     width: "100%",
-    justifyContent: "flex-end",
+    borderRadius: 30,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
 
-  heroOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-    paddingBottom: 40,
-    paddingHorizontal: 24,
+  pillGreen: {
+    backgroundColor: "rgba(32, 108, 80, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.20)",
+  },
+  pillTan: {
+    backgroundColor: "rgba(173, 120, 55, 0.93)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  pillRed: {
+    backgroundColor: "rgba(130, 40, 40, 0.93)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
 
-  heroLogo: {
-    width: 240,
-    height: 80,
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-
-  heroGreeting: {
-    fontSize: 40,
+  pillText: {
+    fontSize: 18,
     fontWeight: "900",
-    color: "#fff",
-    textAlign: "center",
-    letterSpacing: 1,
+    letterSpacing: 0.2,
+    color: "rgba(255,255,255,0.96)",
   },
 
-  heroSubGreeting: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: GeckosColors.geckoGreen,
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 32,
-  },
-
-  infoCard: {
-    backgroundColor: "rgba(20,20,20,0.85)",
-    borderRadius: 24,
-    padding: 20,
-    gap: 16,
-    marginBottom: 32,
+  bottomInfo: {
+    paddingHorizontal: 10,
+    gap: 10,
   },
 
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-  },
-
-  hoursRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  hoursTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#fff",
-  },
-
-  hoursText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#ddd",
+    gap: 10,
   },
 
   infoText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
     flex: 1,
+    color: "rgba(242,231,218,0.95)",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.1,
   },
 
-  buttonContainer: {
-    gap: 14,
-    paddingHorizontal: 8,
-  },
-
-  buttonSpacer: {
-    height: 4,
-  },
+  pressed: { opacity: 0.86 },
 });
