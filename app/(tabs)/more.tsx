@@ -212,12 +212,7 @@ function ServiceCard({
   icon: keyof typeof Ionicons.glyphMap;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.serviceCard,
-        pressed && styles.serviceCardPressed,
-      ]}
-    >
+    <View style={styles.serviceCard}>
       <View style={styles.serviceImageContainer}>
         <Image source={image} style={styles.serviceImage} resizeMode="cover" />
         <View style={styles.serviceIconBadge}>
@@ -228,9 +223,10 @@ function ServiceCard({
         <GeckosText style={styles.serviceTitle}>{title}</GeckosText>
         <GeckosText style={styles.serviceBody}>{body}</GeckosText>
       </View>
-    </Pressable>
+    </View>
   );
 }
+
 
 /* ------------------ SCREEN ------------------ */
 
@@ -726,22 +722,20 @@ const styles = StyleSheet.create({
   },
 
   serviceCard: {
-    width: "46%",
-    borderRadius: 26,
-    overflow: "hidden",
-    backgroundColor: GeckosColors.surface,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
+  width: "46%",
+  borderRadius: 26,
+  overflow: "hidden",
+  backgroundColor: GeckosColors.surface,
+  marginBottom: 24,
+  shadowColor: "#000",
+  shadowOpacity: 0.35,
+  shadowRadius: 20,
+  shadowOffset: { width: 0, height: 12 },
+  elevation: 12,
 
-  serviceCardPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.97 }],
-  },
+  // Ensures all cards are the same height
+  height: 330,
+},
 
   serviceImageContainer: {
     height: 180,
@@ -768,9 +762,14 @@ const styles = StyleSheet.create({
   },
 
   serviceTextPanel: {
-    backgroundColor: "#1a1a1a", // solid dark for perfect contrast
-    padding: 18,
-  },
+  backgroundColor: "#1a1a1a",
+  padding: 18,
+
+  // Fills remaining space below the image consistently
+  flex: 1,
+  justifyContent: "flex-start",
+},
+
 
   serviceTitle: {
     fontSize: 18,

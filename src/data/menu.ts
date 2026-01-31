@@ -193,26 +193,26 @@ export const MENU_ITEMS: MenuItem[] = [
 {
   id: "lunch-one",
   categoryId: "lunch-specials",
-  name: "Lunch Special – Choose One",
+  name: "Lunch Special –––––– Choose One",
   description:
     "Served with rice & refried beans. Available before 2PM.",
-  priceText: "Before 2PM 6.25 | After 2PM & Sat 7.00",
+  priceText: "Before 2PM $6.25 | After 2PM & Sat $7.00",
 },
 {
   id: "lunch-two",
   categoryId: "lunch-specials",
-  name: "Lunch Special – Choose Two",
+  name: "Lunch Special –––––– Choose Two",
   description:
     "Served with rice & refried beans. Available before 2PM.",
-  priceText: "Before 2PM 7.75 | After 2PM & Sat 8.50",
+  priceText: "Before 2PM $7.75 | After 2PM & Sat $8.50",
 },
 {
   id: "lunch-three",
   categoryId: "lunch-specials",
-  name: "Lunch Special – Choose Three",
+  name: "Lunch Special –––––– Choose Three",
   description:
     "Served with rice & refried beans. Available before 2PM.",
-  priceText: "Before 2PM 9.00 | After 2PM & Sat 9.99",
+  priceText: "Before 2PM $9.00 | After 2PM & Sat $9.99",
 },
 // =====================
 // HOUSE SPECIALTIES
@@ -538,12 +538,7 @@ export const MENU_ITEMS: MenuItem[] = [
   name: "Iced Tea (Sweet or Unsweetened)",
   price: 2.99,
 },
-{
-  id: "mexican-coke",
-  categoryId: "beverage",
-  name: "Mexican Coke",
-  price: 3.99,
-},
+
 {
   id: "jarritos",
   categoryId: "beverage",

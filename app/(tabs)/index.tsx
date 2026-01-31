@@ -128,7 +128,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
+  root: { flex: 1, backgroundColor: "#000000" },
   bg: { flex: 1, width: "100%" },
 
   overlayTopDark: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   // ✅ bigger logo like you wanted
   logo: {
     width: 380,
-    height: 160,
+    height: 143,
   },
 
   ctaStack: {
