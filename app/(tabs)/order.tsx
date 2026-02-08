@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { StatusBar } from "expo-status-bar";
@@ -25,17 +25,26 @@ export default function OrderScreen() {
     }
   };
 
-  const handleLoadStart = () => {
-    setIsLoading(true);
-    setHasError(false);
-    setLoadTimeout(false);
+  const startLoadingTimeout = () => {
     clearLoadingTimeout();
-
     // Set a 12-second timeout for loading (reduced for reviewers)
     timeoutRef.current = setTimeout(() => {
       setLoadTimeout(true);
       setIsLoading(false);
     }, 12000);
+  };
+
+  // Start timeout on mount (handles cases where onLoadStart doesn't fire)
+  useEffect(() => {
+    startLoadingTimeout();
+    return () => clearLoadingTimeout();
+  }, []);
+
+  const handleLoadStart = () => {
+    setIsLoading(true);
+    setHasError(false);
+    setLoadTimeout(false);
+    startLoadingTimeout();
   };
 
   const handleLoadEnd = () => {
@@ -50,10 +59,11 @@ export default function OrderScreen() {
     setHasError(true);
   };
 
-  const handleRetry = () => {
+  const handleRefresh = () => {
     setHasError(false);
     setLoadTimeout(false);
     setIsLoading(true);
+    startLoadingTimeout();
     webViewRef.current?.reload();
   };
 
@@ -67,6 +77,22 @@ export default function OrderScreen() {
         safeBackgroundColor="#fff"
         containerBackgroundColor="#fff"
       >
+        {/* Always-visible refresh header */}
+        <View style={styles.header}>
+          <GeckosText style={styles.headerTitle}>Order Online</GeckosText>
+          <Pressable
+            onPress={handleRefresh}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.refreshButton,
+              pressed && styles.refreshButtonPressed,
+            ]}
+          >
+            <Ionicons name="reload" size={20} color="#fff" />
+            <GeckosText style={styles.refreshButtonText}>Refresh</GeckosText>
+          </Pressable>
+        </View>
+
         <WebView
           ref={webViewRef}
           source={{ uri: ORDER_URL }}
@@ -110,7 +136,7 @@ export default function OrderScreen() {
             </GeckosText>
 
             <Pressable
-              onPress={handleRetry}
+              onPress={handleRefresh}
               style={({ pressed }) => [
                 styles.retryButton,
                 pressed && styles.retryButtonPressed,
@@ -127,6 +153,44 @@ export default function OrderScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  refreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: GeckosColors.geckoGreen,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  refreshButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
+  },
+  refreshButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
   webview: {
     flex: 1,
     backgroundColor: "#fff",
