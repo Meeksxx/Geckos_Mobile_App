@@ -75,12 +75,14 @@ export default function OrderScreen() {
           onLoadEnd={handleLoadEnd}
           onError={handleError}
           onHttpError={handleError}
+          renderError={() => null}
+          renderLoading={() => null}
           bounces={false}
           contentInsetAdjustmentBehavior="never"
           // Add additional safeguards
           javaScriptEnabled={true}
           domStorageEnabled={true}
-          startInLoadingState={true}
+          startInLoadingState={false}
         />
 
         {/* Loading Indicator */}
@@ -135,6 +137,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    zIndex: 999,
+    elevation: 999,
   },
   loadingText: {
     marginTop: 16,
