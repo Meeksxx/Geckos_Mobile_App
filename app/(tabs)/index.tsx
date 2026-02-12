@@ -1,9 +1,11 @@
 // app/(tabs)/index.tsx
 import React from "react";
 import {
+  Alert,
   Image,
   ImageBackground,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -51,7 +53,13 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
 
-  const onCall = () => Linking.openURL(`tel:${PHONE_DIAL}`);
+  const onCall = () => {
+    if (Platform.OS === "ios" && Platform.isPad) {
+      Alert.alert("Call Gecko's", PHONE_DISPLAY, [{ text: "OK" }]);
+      return;
+    }
+    Linking.openURL(`tel:${PHONE_DIAL}`);
+  };
 
   return (
     <>

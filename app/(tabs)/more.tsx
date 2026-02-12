@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -35,10 +37,26 @@ const GIFT_CARDS_IMAGE = require("../../assets/more/giftCards.jpg");
 const HEADER_BAR_HEIGHT = 48;
 
 /* ------------------ TYPES & HELPERS ------------------ */
-// (unchanged – all helpers and types same as before)
+
+type EventType = "music" | "special" | "closure" | "other";
+
+type GeckosEvent = {
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  details: string;
+  type: EventType;
+  imageUrl: string;
+};
 
 function safeOpenUrl(url: string) {
   if (!url) return;
+  if (url.startsWith("tel:") && Platform.OS === "ios" && Platform.isPad) {
+    const number = url.replace("tel:", "");
+    Alert.alert("Call Gecko's", number, [{ text: "OK" }]);
+    return;
+  }
   Linking.openURL(url).catch(() => {});
 }
 

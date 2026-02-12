@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,12 +9,20 @@ import { GeckosText } from "@/src/components/GeckosText";
 import { LINKS } from "@/src/constants/links";
 import { GeckosColors } from "@/src/theme/colors";
 
+// Force mobile Safari user agent so the Heartland POS ordering site
+// serves its mobile version in the WebView (iPhone path).
+const MOBILE_USER_AGENT =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+const IS_IPAD = Platform.OS === "ios" && Platform.isPad;
+const PHONE_DISPLAY = "580-564-9599";
+
 export default function OrderScreen() {
   const ORDER_URL = LINKS.ORDER_ONLINE;
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!IS_IPAD);
   const [hasError, setHasError] = useState(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
 
@@ -27,16 +35,16 @@ export default function OrderScreen() {
 
   const startLoadingTimeout = () => {
     clearLoadingTimeout();
-    // Set a 12-second timeout for loading (reduced for reviewers)
     timeoutRef.current = setTimeout(() => {
       setLoadTimeout(true);
       setIsLoading(false);
     }, 12000);
   };
 
-  // Start timeout on mount (handles cases where onLoadStart doesn't fire)
   useEffect(() => {
-    startLoadingTimeout();
+    if (!IS_IPAD) {
+      startLoadingTimeout();
+    }
     return () => clearLoadingTimeout();
   }, []);
 
@@ -59,6 +67,10 @@ export default function OrderScreen() {
     setHasError(true);
   };
 
+  const handleContentProcessTerminate = () => {
+    webViewRef.current?.reload();
+  };
+
   const handleRefresh = () => {
     setHasError(false);
     setLoadTimeout(false);
@@ -67,6 +79,52 @@ export default function OrderScreen() {
     webViewRef.current?.reload();
   };
 
+  const handleCallToOrder = () => {
+    Alert.alert("Call Gecko's", PHONE_DISPLAY, [{ text: "OK" }]);
+  };
+
+  // iPad: the Heartland POS ordering site is not compatible with iPadOS.
+  // Show a functional order screen with call-to-order.
+  if (IS_IPAD) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <AppContainer
+          noPadding={false}
+          noBottomSafeArea
+          safeBackgroundColor="#fff"
+          containerBackgroundColor="#fff"
+        >
+          <View style={styles.iPadContainer}>
+            <Ionicons name="receipt-outline" size={64} color={GeckosColors.geckoGreen} />
+            <GeckosText style={styles.iPadTitle}>Place an Order</GeckosText>
+            <GeckosText style={styles.iPadBody}>
+              Call us to place your order for pickup or delivery.
+            </GeckosText>
+
+            <Pressable
+              onPress={handleCallToOrder}
+              style={({ pressed }) => [
+                styles.iPadButton,
+                pressed && styles.iPadButtonPressed,
+              ]}
+            >
+              <Ionicons name="call" size={20} color="#fff" />
+              <GeckosText style={styles.iPadButtonText}>
+                Call {PHONE_DISPLAY}
+              </GeckosText>
+            </Pressable>
+
+            <GeckosText style={styles.iPadHint}>
+              Online ordering is available on iPhone.
+            </GeckosText>
+          </View>
+        </AppContainer>
+      </>
+    );
+  }
+
+  // iPhone: use inline WebView
   return (
     <>
       <StatusBar style="dark" />
@@ -97,18 +155,22 @@ export default function OrderScreen() {
           ref={webViewRef}
           source={{ uri: ORDER_URL }}
           style={styles.webview}
+          userAgent={MOBILE_USER_AGENT}
+          contentMode="mobile"
           onLoadStart={handleLoadStart}
           onLoadEnd={handleLoadEnd}
           onError={handleError}
           onHttpError={handleError}
+          onContentProcessDidTerminate={handleContentProcessTerminate}
           renderError={() => null}
           renderLoading={() => null}
           bounces={false}
           contentInsetAdjustmentBehavior="never"
-          // Add additional safeguards
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={false}
+          allowsInlineMediaPlayback={true}
+          sharedCookiesEnabled={true}
         />
 
         {/* Loading Indicator */}
@@ -245,5 +307,50 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  // iPad-specific styles
+  iPadContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  iPadTitle: {
+    marginTop: 16,
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+  },
+  iPadBody: {
+    marginTop: 8,
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+  },
+  iPadButton: {
+    marginTop: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: GeckosColors.geckoGreen,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  iPadButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }],
+  },
+  iPadButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  iPadHint: {
+    marginTop: 20,
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
   },
 });
