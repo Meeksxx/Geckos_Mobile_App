@@ -17,13 +17,20 @@ export type MenuCategory = {
   title: string;
 };
 
+export type AddOn = {
+  name: string;
+  price: number;
+};
+
 export type MenuItem = {
   id: string;
   categoryId: MenuCategoryId;
   name: string;
   description?: string;
-  price?: number;      // simple price
-  priceText?: string;  // for small/large, chicken/beef, etc.
+  price?: number;        // simple price
+  priceText?: string;    // for small/large, chicken/beef, etc.
+  addOns?: AddOn[];      // optional substitutions / extras
+  choiceCount?: number;  // lunch specials: how many items to pick
 };
 
 
@@ -43,6 +50,26 @@ export const MENU_CATEGORIES: MenuCategory[] = [
 ];
 
 
+
+export const LUNCH_CHOICES = [
+  "Cheese Enchilada",
+  "Chicken Enchilada",
+  "Beef Enchilada",
+  "Crispy Taco",
+  "Bean Tostada",
+  "Beef Tostada",
+  "Guacamole Tostada",
+  "Beef Burrito",
+  "Cheese Burrito",
+];
+
+export const LUNCH_SAUCES: AddOn[] = [
+  { name: "Chili", price: 0 },
+  { name: "Ranchero", price: 0 },
+  { name: "Sour Cream Sauce", price: 0 },
+  { name: "Yellow Queso", price: 0 },
+  { name: "White Queso", price: 0.50 },
+];
 
 export const MENU_ITEMS: MenuItem[] = [
   {
@@ -101,8 +128,9 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "appetizers",
     name: "Chicken Flautas",
     description:
-      "Chicken rolled in corn tortillas, fried and served with guacamole & sour cream. Substitute beef +1.00.",
+      "Chicken rolled in corn tortillas, fried and served with guacamole & sour cream.",
     price: 7.99,
+    addOns: [{ name: "Substitute beef", price: 1.00 }],
   },
   {
     id: "mini-tacos",
@@ -195,24 +223,27 @@ export const MENU_ITEMS: MenuItem[] = [
   categoryId: "lunch-specials",
   name: "Lunch Special –––––– Choose One",
   description:
-    "Served with rice & refried beans. Available before 2PM.",
+    "Served with rice & refried beans.",
   priceText: "Before 2PM $6.25 | After 2PM & Sat $7.00",
+  choiceCount: 1,
 },
 {
   id: "lunch-two",
   categoryId: "lunch-specials",
   name: "Lunch Special –––––– Choose Two",
   description:
-    "Served with rice & refried beans. Available before 2PM.",
+    "Served with rice & refried beans.",
   priceText: "Before 2PM $7.75 | After 2PM & Sat $8.50",
+  choiceCount: 2,
 },
 {
   id: "lunch-three",
   categoryId: "lunch-specials",
   name: "Lunch Special –––––– Choose Three",
   description:
-    "Served with rice & refried beans. Available before 2PM.",
+    "Served with rice & refried beans.",
   priceText: "Before 2PM $9.00 | After 2PM & Sat $9.99",
+  choiceCount: 3,
 },
 // =====================
 // HOUSE SPECIALTIES
@@ -281,24 +312,27 @@ export const MENU_ITEMS: MenuItem[] = [
   categoryId: "local-favorites",
   name: "Bowl",
   description:
-    "Chicken or beef on a bed of rice, topped with queso. Substitute white queso +0.50.",
+    "Chicken or beef on a bed of rice, topped with queso.",
   priceText: "Chicken 11.99 | Beef 12.99",
+  addOns: [{ name: "White queso upgrade", price: 0.50 }],
 },
 {
   id: "avocado-bowl",
   categoryId: "local-favorites",
   name: "Avocado Bowl",
   description:
-    "Two avocado halves filled with ground beef & rice, topped with yellow queso. Substitute white queso +0.50.",
+    "Two avocado halves filled with ground beef & rice, topped with yellow queso.",
   price: 11.99,
+  addOns: [{ name: "White queso upgrade", price: 0.50 }],
 },
 {
   id: "super-burrito",
   categoryId: "local-favorites",
   name: "Super Burrito",
   description:
-    "A 12\" flour tortilla stuffed with beef or chicken fajita meat, rice, lettuce, refried beans, guacamole & sour cream. Substitute white queso +0.50.",
+    "A 12\" flour tortilla stuffed with beef or chicken fajita meat, rice, lettuce, refried beans, guacamole & sour cream.",
   priceText: "Chicken 12.99 | Beef 14.99",
+  addOns: [{ name: "White queso upgrade", price: 0.50 }],
 },
 {
   id: "cowboy-shrimp",
@@ -332,48 +366,57 @@ export const MENU_ITEMS: MenuItem[] = [
   categoryId: "american-food",
   name: "Hamburger",
   description:
-    "Served with lettuce, tomatoes, onions & pickles. Served with French fries. Substitute onion rings +2.00.",
+    "Served with lettuce, tomatoes, onions & pickles. Served with French fries.",
   price: 9.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "cheeseburger",
   categoryId: "american-food",
   name: "Cheeseburger",
   description:
-    "Served with cheese, lettuce, tomatoes, onions & pickles. Served with French fries. Substitute onion rings +2.00.",
+    "Served with cheese, lettuce, tomatoes, onions & pickles. Served with French fries.",
   price: 10.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "guacamole-burger",
   categoryId: "american-food",
   name: "Guacamole Burger",
   description:
-    "Served with cheddar jack cheese, lettuce, tomato & guacamole. Served with French fries. Substitute onion rings +2.00.",
+    "Served with cheddar jack cheese, lettuce, tomato & guacamole. Served with French fries.",
   price: 12.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "bacon-burger",
   categoryId: "american-food",
   name: "Bacon Burger",
   description:
-    "Served with cheddar jack cheese, lettuce, tomato & bacon. Add an egg +1.00. Served with French fries. Substitute onion rings +2.00.",
+    "Served with cheddar jack cheese, lettuce, tomato & bacon. Served with French fries.",
   price: 12.99,
+  addOns: [
+    { name: "Add egg", price: 1.00 },
+    { name: "Onion rings (sub fries)", price: 2.00 },
+  ],
 },
 {
   id: "chile-relleno-burger",
   categoryId: "american-food",
   name: "Chile Relleno Burger",
   description:
-    "Beef patty topped with mayo, lettuce, tomato & house-made chile relleno. Served with French fries. Substitute onion rings +2.00.",
+    "Beef patty topped with mayo, lettuce, tomato & house-made chile relleno. Served with French fries.",
   price: 14.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "quesadilla-burger",
   categoryId: "american-food",
   name: "Quesadilla Burger",
   description:
-    "Quesadilla meets burger! Topped with cheddar jack cheese, lettuce & pico de gallo. Served with house-made Mexi-Ranch dressing & French fries. Substitute onion rings +2.00.",
+    "Quesadilla meets burger! Topped with cheddar jack cheese, lettuce & pico de gallo. Served with house-made Mexi-Ranch dressing & French fries.",
   price: 12.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "chicken-wrap",

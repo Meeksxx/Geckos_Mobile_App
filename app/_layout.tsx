@@ -1,21 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { Animated, Image, StyleSheet, View } from "react-native";
 
 import { GeckosColors } from "@/src/theme/colors";
+import { CartProvider } from "@/src/context/CartContext";
 
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
 export default function RootLayout() {
+  const pathname = usePathname();
+  const isKitchenRoute = pathname === "/kitchen";
   const [showLaunch, setShowLaunch] = useState(true);
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Hold the launch screen for a moment so it’s actually visible in Expo Go
+    if (isKitchenRoute) {
+      setShowLaunch(false);
+      return;
+    }
+
+    // Hold the launch screen for a moment so it is visible in Expo Go.
     const timer = setTimeout(() => {
       Animated.timing(opacity, {
         toValue: 0,
@@ -25,31 +33,32 @@ export default function RootLayout() {
     }, 2600);
 
     return () => clearTimeout(timer);
-  }, [opacity]);
+  }, [isKitchenRoute, opacity]);
 
   return (
-    <View style={styles.root}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="item" options={{ presentation: "modal" }} />
-      </Stack>
+    <CartProvider>
+      <View style={styles.root}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="item" options={{ presentation: "modal" }} />
+          <Stack.Screen name="kitchen" />
+        </Stack>
 
-      {/* Keep status bar consistent with dark theme */}
-      <StatusBar style="light" />
+        {/* Keep status bar consistent with dark theme */}
+        <StatusBar style="light" />
 
-{/* In-app launch overlay (shows in Expo Go) */}
-{showLaunch && (
-  <Animated.View style={[styles.launchOverlay, { opacity }]}>
-    <Image
-      source={require("../assets/images/splash1.png")}
-      style={styles.launchLogo}
-      resizeMode="contain"
-    />
-
-    {/* If you want to use your GeckosText component here later, we can. */}
-  </Animated.View>
-)}
-    </View>
+        {/* In-app launch overlay (shows in Expo Go) */}
+        {showLaunch && (
+          <Animated.View style={[styles.launchOverlay, { opacity }]}>
+            <Image
+              source={require("../assets/images/splash1.png")}
+              style={styles.launchLogo}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        )}
+      </View>
+    </CartProvider>
   );
 }
 

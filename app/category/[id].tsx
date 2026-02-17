@@ -89,35 +89,45 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
   const showImageSlot = Boolean(imageMap);
 
   return (
-    <View style={styles.itemRow}>
-      {showImageSlot ? (
-        <View style={styles.mediaWrap}>
-          {image ? (
-            <Image source={image} style={styles.thumb} resizeMode="cover" />
-          ) : (
-            <View style={styles.missingThumb}>
-              <GeckosText style={styles.missingThumbText}>No photo</GeckosText>
-            </View>
-          )}
-        </View>
-      ) : null}
-
-      <View style={styles.itemContent}>
-        <View style={styles.itemTop}>
-          <GeckosText style={styles.itemName}>{item.name}</GeckosText>
-
-          <View style={styles.priceWrap}>
-            <PriceBlock item={item} />
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: "/item",
+          params: { itemId: item.id },
+        })
+      }
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
+      <View style={styles.itemRow}>
+        {showImageSlot ? (
+          <View style={styles.mediaWrap}>
+            {image ? (
+              <Image source={image} style={styles.thumb} resizeMode="cover" />
+            ) : (
+              <View style={styles.missingThumb}>
+                <GeckosText style={styles.missingThumbText}>No photo</GeckosText>
+              </View>
+            )}
           </View>
-        </View>
-
-        {item.description ? (
-          <GeckosText variant="muted" style={styles.itemDesc}>
-            {item.description}
-          </GeckosText>
         ) : null}
+
+        <View style={styles.itemContent}>
+          <View style={styles.itemTop}>
+            <GeckosText style={styles.itemName}>{item.name}</GeckosText>
+
+            <View style={styles.priceWrap}>
+              <PriceBlock item={item} />
+            </View>
+          </View>
+
+          {item.description ? (
+            <GeckosText variant="muted" style={styles.itemDesc}>
+              {item.description}
+            </GeckosText>
+          ) : null}
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
