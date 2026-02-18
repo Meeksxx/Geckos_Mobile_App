@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Linking,
@@ -17,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 import { useCart, CartItem } from "@/src/context/CartContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
@@ -47,16 +49,16 @@ function CartItemRow({
             {addOn.price > 0 ? ` ($${addOn.price.toFixed(2)})` : ""}
           </GeckosText>
         ))}
-        {(item.lunchChoices ?? []).length > 0 ? (
-          <GeckosText style={styles.cartItemDetail}>
-            Lunch choices: {(item.lunchChoices ?? []).join(", ")}
-          </GeckosText>
-        ) : null}
-        {item.lunchSauce ? (
-          <GeckosText style={styles.cartItemDetail}>
-            Sauce: {item.lunchSauce}
-          </GeckosText>
-        ) : null}
+        {(item.lunchChoices ?? []).length > 0
+          ? (item.lunchChoices ?? []).map((choice, idx) => {
+              const sauce = (item.lunchSauces ?? [])[idx];
+              return (
+                <GeckosText key={`${choice}-${idx}`} style={styles.cartItemDetail}>
+                  {choice}{sauce ? ` (${sauce})` : ""}
+                </GeckosText>
+              );
+            })
+          : null}
         {item.specialInstructions ? (
           <GeckosText style={styles.cartItemDetail}>
             Note: {item.specialInstructions}
@@ -118,32 +120,173 @@ function EmptyCart() {
   );
 }
 
-function OrderConfirmed({ onDone }: { onDone: () => void }) {
+const STATUS_STEPS = [
+  { key: "new", label: "Order Received", icon: "receipt-outline" as const },
+  { key: "accepted", label: "Accepted", icon: "checkmark-circle-outline" as const },
+  { key: "preparing", label: "Preparing", icon: "flame-outline" as const },
+  { key: "ready", label: "Ready for Pickup", icon: "bag-check-outline" as const },
+  { key: "picked_up", label: "Picked Up", icon: "checkmark-done-outline" as const },
+];
+
+function OrderTracker({
+  orderId,
+  onDone,
+  onClose,
+}: {
+  orderId: string;
+  onDone: () => void;
+  onClose: () => void;
+}) {
+  const [status, setStatus] = useState("new");
+
+  useEffect(() => {
+    // Fetch initial status
+    supabase
+      .from("orders")
+      .select("status")
+      .eq("id", orderId)
+      .single()
+      .then(({ data }) => {
+        if (data?.status) setStatus(data.status);
+      });
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel(`order-${orderId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
+        (payload) => {
+          if (payload.new?.status) setStatus(payload.new.status as string);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderId]);
+
+  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
+  const isCancelled = status === "cancelled";
+  const isPickedUp = status === "picked_up";
+
   return (
-    <View style={styles.emptyContainer}>
+    <ScrollView contentContainerStyle={styles.trackerContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.confirmedIconWrap}>
-        <Ionicons name="checkmark-circle" size={64} color={GeckosColors.geckoGreen} />
+        <Ionicons
+          name={isCancelled ? "close-circle" : isPickedUp ? "checkmark-done-circle" : "time-outline"}
+          size={56}
+          color={isCancelled ? GeckosColors.chiliRed : GeckosColors.geckoGreen}
+        />
       </View>
-      <GeckosText style={styles.confirmedTitle}>Order Placed!</GeckosText>
-      <GeckosText style={styles.confirmedBody}>
-        Your order has been received. We will have it ready for pickup soon!
+
+      <GeckosText style={styles.confirmedTitle}>
+        {isCancelled ? "Order Cancelled" : isPickedUp ? "Order Complete!" : "Order In Progress"}
       </GeckosText>
+      <GeckosText style={styles.confirmedBody}>
+        {isCancelled
+          ? "Your order has been cancelled. Please contact the restaurant if you have questions."
+          : isPickedUp
+          ? "Thanks for ordering from Gecko's! Enjoy your meal."
+          : "We're working on your order. Status updates appear in real time."}
+      </GeckosText>
+
+      {!isCancelled && (
+        <View style={styles.statusTimeline}>
+          {STATUS_STEPS.map((step, idx) => {
+            const isCompleted = idx <= currentIdx;
+            const isActive = idx === currentIdx;
+            return (
+              <View key={step.key} style={styles.statusStep}>
+                <View style={styles.statusStepIndicator}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      isCompleted && styles.statusDotCompleted,
+                      isActive && styles.statusDotActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name={step.icon}
+                      size={16}
+                      color={isCompleted ? "#fff" : GeckosColors.mutedText}
+                    />
+                  </View>
+                  {idx < STATUS_STEPS.length - 1 && (
+                    <View
+                      style={[
+                        styles.statusLine,
+                        idx < currentIdx && styles.statusLineCompleted,
+                      ]}
+                    />
+                  )}
+                </View>
+                <GeckosText
+                  style={[
+                    styles.statusLabel,
+                    isCompleted && styles.statusLabelCompleted,
+                    isActive && styles.statusLabelActive,
+                  ]}
+                >
+                  {step.label}
+                </GeckosText>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       <Pressable
-        onPress={onDone}
+        onPress={isPickedUp || isCancelled ? onDone : onClose}
         style={({ pressed }) => [styles.browseButton, pressed && styles.buttonPressed]}
       >
-        <GeckosText style={styles.browseButtonText}>Done</GeckosText>
+        <GeckosText style={styles.browseButtonText}>
+          {isPickedUp || isCancelled ? "Done" : "Close Tracker"}
+        </GeckosText>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 export default function OrderScreen() {
   const { items, removeItem, updateQuantity, clearCart, subtotal } = useCart();
+  const { session, profile, isLoggedIn } = useAuth();
   const [orderState, setOrderState] = useState<OrderState>("cart");
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pickupTime, setPickupTime] = useState("");
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Check for an active order on mount (so tracker can be reopened)
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    supabase
+      .from("orders")
+      .select("id, status")
+      .eq("user_id", session.user.id)
+      .not("status", "in", '("picked_up","cancelled")')
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.id) {
+          setActiveOrderId(data.id);
+          setOrderState("confirmed");
+        }
+      });
+  }, [session?.user?.id]);
+
+  // Pre-fill name and phone from profile when user signs in
+  useEffect(() => {
+    if (profile && !profileLoaded) {
+      setCustomerName(profile.display_name);
+      setCustomerPhone(profile.phone);
+      setProfileLoaded(true);
+    }
+  }, [profile, profileLoaded]);
 
   const handleCall = () => {
     if (Platform.OS === "ios" && Platform.isPad) {
@@ -154,6 +297,10 @@ export default function OrderScreen() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!isLoggedIn) {
+      router.push("/auth" as any);
+      return;
+    }
     if (!customerName.trim()) {
       Alert.alert("Name Required", "Please enter your name for the order.");
       return;
@@ -166,7 +313,8 @@ export default function OrderScreen() {
     setOrderState("submitting");
 
     try {
-      const { error } = await supabase.from("orders").insert({
+      const { data: insertedOrder, error } = await supabase.from("orders").insert({
+        user_id: session?.user?.id ?? null,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
         pickup_time: pickupTime.trim() || null,
@@ -178,16 +326,17 @@ export default function OrderScreen() {
           variant: i.variant,
           selectedAddOns: i.selectedAddOns ?? [],
           lunchChoices: i.lunchChoices ?? [],
-          lunchSauce: i.lunchSauce ?? null,
+          lunchSauces: i.lunchSauces ?? [],
           specialInstructions: i.specialInstructions ?? null,
           price: i.price,
           quantity: i.quantity,
         })),
         subtotal: Math.round(subtotal * 100) / 100,
-      });
+      }).select("id").single();
 
       if (error) throw error;
 
+      setActiveOrderId(insertedOrder?.id ?? null);
       setOrderState("confirmed");
     } catch (error: any) {
       setOrderState("cart");
@@ -207,28 +356,46 @@ export default function OrderScreen() {
 
   const handleDone = () => {
     clearCart();
+    setActiveOrderId(null);
     setCustomerName("");
     setCustomerPhone("");
     setPickupTime("");
     setOrderState("cart");
   };
 
-  if (orderState === "confirmed") {
+  // Close tracker but keep order ID — it'll be found again on next visit
+  const handleCloseTracker = () => {
+    setOrderState("cart");
+  };
+
+  if (orderState === "confirmed" && activeOrderId) {
     return (
       <>
         <StatusBar style="light" />
         <AppContainer>
-          <OrderConfirmed onDone={handleDone} />
+          <OrderTracker orderId={activeOrderId} onDone={handleDone} onClose={handleCloseTracker} />
         </AppContainer>
       </>
     );
   }
+
+  const activeOrderBanner = activeOrderId && orderState === "cart" ? (
+    <Pressable
+      onPress={() => setOrderState("confirmed")}
+      style={({ pressed }) => [styles.activeOrderBanner, pressed && styles.pressed]}
+    >
+      <Ionicons name="time-outline" size={20} color="#fff" />
+      <GeckosText style={styles.activeOrderBannerText}>You have an active order — tap to track</GeckosText>
+      <Ionicons name="chevron-forward" size={18} color="#fff" />
+    </Pressable>
+  ) : null;
 
   if (items.length === 0) {
     return (
       <>
         <StatusBar style="light" />
         <AppContainer>
+          {activeOrderBanner}
           <EmptyCart />
         </AppContainer>
       </>
@@ -250,6 +417,8 @@ export default function OrderScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {activeOrderBanner}
+
             {/* Header */}
             <GeckosText style={styles.screenTitle}>Your Order</GeckosText>
 
@@ -275,59 +444,79 @@ export default function OrderScreen() {
 
             <View style={styles.divider} />
 
-            {/* Checkout form */}
-            <GeckosText style={styles.formTitle}>Pickup Details</GeckosText>
+            {!isLoggedIn ? (
+              <View style={styles.signInPrompt}>
+                <Ionicons name="person-circle-outline" size={36} color={GeckosColors.geckoGreen} />
+                <GeckosText style={styles.signInPromptTitle}>Sign in to place your order</GeckosText>
+                <GeckosText style={styles.signInPromptBody}>
+                  Create an account or sign in so we can link your order to you.
+                </GeckosText>
+                <Pressable
+                  onPress={() => router.push("/auth" as any)}
+                  style={({ pressed }) => [styles.signInButton, pressed && styles.buttonPressed]}
+                >
+                  <GeckosText style={styles.signInButtonText}>Sign In / Sign Up</GeckosText>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {/* Checkout form */}
+                <GeckosText style={styles.formTitle}>Pickup Details</GeckosText>
 
-            <GeckosText style={styles.inputLabel}>Name *</GeckosText>
-            <TextInput
-              style={styles.input}
-              value={customerName}
-              onChangeText={setCustomerName}
-              placeholder="Your name"
-              placeholderTextColor={GeckosColors.mutedText}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
+                <GeckosText style={styles.inputLabel}>Name *</GeckosText>
+                <TextInput
+                  style={styles.input}
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  placeholder="Your name"
+                  placeholderTextColor={GeckosColors.mutedText}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
 
-            <GeckosText style={styles.inputLabel}>Phone *</GeckosText>
-            <TextInput
-              style={styles.input}
-              value={customerPhone}
-              onChangeText={setCustomerPhone}
-              placeholder="(555) 555-5555"
-              placeholderTextColor={GeckosColors.mutedText}
-              keyboardType="phone-pad"
-              returnKeyType="next"
-            />
+                <GeckosText style={styles.inputLabel}>Phone *</GeckosText>
+                <TextInput
+                  style={styles.input}
+                  value={customerPhone}
+                  onChangeText={setCustomerPhone}
+                  placeholder="(555) 555-5555"
+                  placeholderTextColor={GeckosColors.mutedText}
+                  keyboardType="phone-pad"
+                  returnKeyType="next"
+                />
 
-            <GeckosText style={styles.inputLabel}>Pickup Time (optional)</GeckosText>
-            <TextInput
-              style={styles.input}
-              value={pickupTime}
-              onChangeText={setPickupTime}
-              placeholder="e.g. 6:30 PM"
-              placeholderTextColor={GeckosColors.mutedText}
-              returnKeyType="done"
-            />
+                <GeckosText style={styles.inputLabel}>Pickup Time (optional)</GeckosText>
+                <TextInput
+                  style={styles.input}
+                  value={pickupTime}
+                  onChangeText={setPickupTime}
+                  placeholder="e.g. 6:30 PM"
+                  placeholderTextColor={GeckosColors.mutedText}
+                  returnKeyType="done"
+                />
+              </>
+            )}
           </ScrollView>
 
-          {/* Place order button */}
-          <View style={styles.bottomBar}>
-            <Pressable
-              onPress={handlePlaceOrder}
-              disabled={orderState === "submitting"}
-              style={({ pressed }) => [
-                styles.placeOrderButton,
-                pressed && styles.buttonPressed,
-                orderState === "submitting" && styles.buttonDisabled,
-              ]}
-            >
-              <Ionicons name="checkmark-circle-outline" size={20} color={GeckosColors.background} />
-              <GeckosText style={styles.placeOrderText}>
-                {orderState === "submitting" ? "Placing Order..." : `Place Order — $${subtotal.toFixed(2)}`}
-              </GeckosText>
-            </Pressable>
-          </View>
+          {/* Place order button (only when signed in) */}
+          {isLoggedIn && (
+            <View style={styles.bottomBar}>
+              <Pressable
+                onPress={handlePlaceOrder}
+                disabled={orderState === "submitting"}
+                style={({ pressed }) => [
+                  styles.placeOrderButton,
+                  pressed && styles.buttonPressed,
+                  orderState === "submitting" && styles.buttonDisabled,
+                ]}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color={GeckosColors.background} />
+                <GeckosText style={styles.placeOrderText}>
+                  {orderState === "submitting" ? "Placing Order..." : `Place Order — $${subtotal.toFixed(2)}`}
+                </GeckosText>
+              </Pressable>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </AppContainer>
     </>
@@ -498,6 +687,23 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
+  // Active order banner
+  activeOrderBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: GeckosColors.geckoGreen,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  activeOrderBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
   // Empty cart
   emptyContainer: {
     flex: 1,
@@ -549,6 +755,38 @@ const styles = StyleSheet.create({
     color: GeckosColors.background,
   },
 
+  // Sign in prompt
+  signInPrompt: {
+    alignItems: "center",
+    padding: 20,
+    gap: 10,
+  },
+  signInPromptTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: GeckosColors.text,
+    textAlign: "center",
+  },
+  signInPromptBody: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  signInButton: {
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 999,
+    backgroundColor: GeckosColors.geckoGreen,
+  },
+  signInButtonText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: GeckosColors.background,
+  },
+
   // Confirmed
   confirmedIconWrap: {
     marginBottom: 8,
@@ -568,5 +806,72 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+
+  // Order tracker
+  trackerContainer: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  statusTimeline: {
+    width: "100%",
+    marginTop: 28,
+    marginBottom: 28,
+    gap: 0,
+  },
+  statusStep: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  statusStepIndicator: {
+    alignItems: "center",
+    width: 32,
+  },
+  statusDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: GeckosColors.surface,
+    borderWidth: 2,
+    borderColor: GeckosColors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusDotCompleted: {
+    backgroundColor: GeckosColors.geckoGreen,
+    borderColor: GeckosColors.geckoGreen,
+  },
+  statusDotActive: {
+    borderColor: GeckosColors.geckoGreen,
+    shadowColor: GeckosColors.geckoGreen,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  statusLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: GeckosColors.border,
+    alignSelf: "center",
+  },
+  statusLineCompleted: {
+    backgroundColor: GeckosColors.geckoGreen,
+  },
+  statusLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    paddingTop: 6,
+  },
+  statusLabelCompleted: {
+    color: GeckosColors.text,
+  },
+  statusLabelActive: {
+    color: GeckosColors.geckoGreen,
+    fontWeight: "800",
   },
 });

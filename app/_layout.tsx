@@ -5,6 +5,7 @@ import "react-native-reanimated";
 import { Animated, Image, StyleSheet, View } from "react-native";
 
 import { GeckosColors } from "@/src/theme/colors";
+import { AuthProvider } from "@/src/context/AuthContext";
 import { CartProvider } from "@/src/context/CartContext";
 
 export const unstable_settings = {
@@ -36,11 +37,13 @@ export default function RootLayout() {
   }, [isKitchenRoute, opacity]);
 
   return (
+    <AuthProvider>
     <CartProvider>
       <View style={styles.root}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="item" options={{ presentation: "modal" }} />
+          <Stack.Screen name="auth" options={{ presentation: "modal" }} />
           <Stack.Screen name="kitchen" />
         </Stack>
 
@@ -59,6 +62,7 @@ export default function RootLayout() {
         )}
       </View>
     </CartProvider>
+    </AuthProvider>
   );
 }
 

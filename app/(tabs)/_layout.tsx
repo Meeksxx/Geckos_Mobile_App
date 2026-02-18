@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { GeckosColors } from "@/src/theme/colors";
 import { GeckosText } from "@/src/components/GeckosText";
 import { useCart } from "@/src/context/CartContext";
+import { useAuth } from "@/src/context/AuthContext";
 
 function CartBadge({ count }: { count: number }) {
   if (count === 0) return null;
@@ -40,6 +41,7 @@ const badgeStyles = StyleSheet.create({
 
 export default function TabLayout() {
   const { itemCount } = useCart();
+  const { isLoggedIn } = useAuth();
 
   return (
     <Tabs
@@ -96,6 +98,20 @@ export default function TabLayout() {
               <Ionicons name="receipt" size={size} color={color} />
               <CartBadge count={itemCount} />
             </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: isLoggedIn ? "Account" : "Sign In",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name={isLoggedIn ? "person-circle" : "person-circle-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

@@ -98,9 +98,9 @@ export default function HomeScreen() {
                 onPress={() => router.push("/(tabs)/menu")}
               />
               <PillButton
-                label="Order Online"
+                label="Start Your Order"
                 variant="tan"
-                onPress={() => router.push("/(tabs)/order")}
+                onPress={() => router.push("/(tabs)/menu")}
               />
               <PillButton label="Call Gecko’s" variant="red" onPress={onCall} />
             </View>

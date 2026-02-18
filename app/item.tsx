@@ -72,15 +72,15 @@ function makeLineKey(input: {
   variant?: string;
   selectedAddOns: AddOn[];
   lunchChoices: string[];
-  lunchSauce?: string;
+  lunchSauces: string[];
   specialInstructions?: string;
 }) {
   return JSON.stringify({
     itemId: input.itemId,
     variant: input.variant ?? null,
     addOns: input.selectedAddOns.map((a) => `${a.name}:${a.price}`).sort(),
-    lunchChoices: [...input.lunchChoices].sort(),
-    lunchSauce: input.lunchSauce ?? null,
+    lunchChoices: input.lunchChoices,
+    lunchSauces: input.lunchSauces,
     notes: (input.specialInstructions ?? "").trim().toLowerCase(),
   });
 }
@@ -102,9 +102,7 @@ export default function ItemModal() {
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
   const [selectedItemAddOns, setSelectedItemAddOns] = useState<string[]>([]);
   const [selectedLunchChoices, setSelectedLunchChoices] = useState<string[]>([]);
-  const [selectedLunchSauce, setSelectedLunchSauce] = useState<string | undefined>(
-    undefined
-  );
+  const [selectedLunchSauces, setSelectedLunchSauces] = useState<string[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [quantity, setQuantity] = useState(1);
 
@@ -130,12 +128,14 @@ export default function ItemModal() {
   const chosenMenuAddOns = (item.addOns ?? []).filter((a) =>
     selectedItemAddOns.includes(a.name)
   );
-  const lunchSauce = LUNCH_SAUCES.find((s) => s.name === selectedLunchSauce);
-  const selectedAddOns = lunchSauce
-    ? [...chosenMenuAddOns, lunchSauce]
-    : chosenMenuAddOns;
-  const addOnsUnitPrice = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
-  const unitPrice = baseUnitPrice + addOnsUnitPrice;
+  // Collect sauce add-ons from per-choice selections
+  const chosenSauceAddOns = selectedLunchSauces
+    .map((name) => LUNCH_SAUCES.find((s) => s.name === name))
+    .filter((s): s is typeof LUNCH_SAUCES[number] => !!s);
+  const selectedAddOns = [...chosenMenuAddOns, ...chosenSauceAddOns];
+  const addOnsUnitPrice = chosenMenuAddOns.reduce((sum, a) => sum + a.price, 0);
+  const saucesPrice = chosenSauceAddOns.reduce((sum, a) => sum + a.price, 0);
+  const unitPrice = baseUnitPrice + addOnsUnitPrice + saucesPrice;
   const totalPrice = unitPrice * quantity;
 
   const toggleItemAddOn = (name: string) => {
@@ -144,15 +144,33 @@ export default function ItemModal() {
     );
   };
 
-  const toggleLunchChoice = (choice: string) => {
+  const SAUCE_ITEMS = ["enchilada", "burrito"];
+  const choiceNeedsSauce = (choice: string) =>
+    SAUCE_ITEMS.some((s) => choice.toLowerCase().includes(s));
+
+  const addLunchChoice = (choice: string) => {
     const count = item.choiceCount ?? 0;
     setSelectedLunchChoices((prev) => {
-      if (prev.includes(choice)) return prev.filter((c) => c !== choice);
       if (prev.length >= count) {
         Alert.alert("Selection limit", `Choose up to ${count} option(s).`);
         return prev;
       }
       return [...prev, choice];
+    });
+    // Add empty sauce slot (will be filled by user if needed)
+    setSelectedLunchSauces((prev) => [...prev, ""]);
+  };
+
+  const removeLunchChoice = (index: number) => {
+    setSelectedLunchChoices((prev) => prev.filter((_, i) => i !== index));
+    setSelectedLunchSauces((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const setChoiceSauce = (index: number, sauce: string) => {
+    setSelectedLunchSauces((prev) => {
+      const next = [...prev];
+      next[index] = sauce;
+      return next;
     });
   };
 
@@ -165,6 +183,14 @@ export default function ItemModal() {
       return;
     }
 
+    // Validate sauces for enchiladas/burritos
+    for (let i = 0; i < selectedLunchChoices.length; i++) {
+      if (choiceNeedsSauce(selectedLunchChoices[i]) && !selectedLunchSauces[i]) {
+        Alert.alert("Sauce Required", `Please select a sauce for your ${selectedLunchChoices[i]}.`);
+        return;
+      }
+    }
+
     const trimmedInstructions = specialInstructions.trim() || undefined;
     const selectedVariantLabel = variant?.label;
     const lineKey = makeLineKey({
@@ -172,7 +198,7 @@ export default function ItemModal() {
       variant: selectedVariantLabel,
       selectedAddOns,
       lunchChoices: selectedLunchChoices,
-      lunchSauce: selectedLunchSauce,
+      lunchSauces: selectedLunchSauces,
       specialInstructions: trimmedInstructions,
     });
 
@@ -183,7 +209,7 @@ export default function ItemModal() {
       variant: selectedVariantLabel,
       selectedAddOns,
       lunchChoices: selectedLunchChoices,
-      lunchSauce: selectedLunchSauce,
+      lunchSauces: selectedLunchSauces,
       specialInstructions: trimmedInstructions,
       price: unitPrice,
       quantity,
@@ -295,48 +321,60 @@ export default function ItemModal() {
               Choose {item.choiceCount}
             </GeckosText>
             <GeckosText style={styles.sectionHelp}>
-              Select exactly {item.choiceCount} option(s).
+              Select {item.choiceCount} item(s). You can pick the same item more than once.
             </GeckosText>
+
+            {/* Current selections with per-item sauce pickers */}
+            {selectedLunchChoices.length > 0 && (
+              <View style={styles.selectedChoicesList}>
+                {selectedLunchChoices.map((choice, idx) => (
+                  <View key={`${choice}-${idx}`} style={styles.selectedChoiceCard}>
+                    <View style={styles.selectedChoiceHeader}>
+                      <GeckosText style={styles.selectedChoiceText}>{choice}</GeckosText>
+                      <Pressable onPress={() => removeLunchChoice(idx)} hitSlop={8}>
+                        <Ionicons name="close-circle" size={18} color={GeckosColors.chiliRed} />
+                      </Pressable>
+                    </View>
+                    {choiceNeedsSauce(choice) && (
+                      <View style={styles.saucePickerWrap}>
+                        <GeckosText style={styles.saucePickerLabel}>Sauce:</GeckosText>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sauceScroll}>
+                          <View style={styles.sauceRow}>
+                            {LUNCH_SAUCES.map((sauce) => {
+                              const isSelected = selectedLunchSauces[idx] === sauce.name;
+                              return (
+                                <Pressable
+                                  key={sauce.name}
+                                  onPress={() => setChoiceSauce(idx, sauce.name)}
+                                  style={[styles.saucePill, isSelected && styles.saucePillSelected]}
+                                >
+                                  <GeckosText style={[styles.saucePillText, isSelected && styles.saucePillTextSelected]}>
+                                    {sauce.name}{sauce.price > 0 ? ` +${money(sauce.price)}` : ""}
+                                  </GeckosText>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Available choices */}
             <View style={styles.choiceWrap}>
               {LUNCH_CHOICES.map((choice) => {
-                const selected = selectedLunchChoices.includes(choice);
+                const disabled = selectedLunchChoices.length >= (item.choiceCount ?? 0);
                 return (
                   <Pressable
                     key={choice}
-                    onPress={() => toggleLunchChoice(choice)}
-                    style={[styles.choiceChip, selected && styles.choiceChipSelected]}
+                    onPress={() => addLunchChoice(choice)}
+                    style={[styles.choiceChip, disabled && styles.choiceChipDisabled]}
                   >
-                    <GeckosText style={[styles.choiceText, selected && styles.optionLabelSelected]}>
+                    <GeckosText style={[styles.choiceText, disabled && styles.choiceTextDisabled]}>
                       {choice}
-                    </GeckosText>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
-        {isLunchSpecial ? (
-          <View style={styles.section}>
-            <GeckosText style={styles.sectionLabel}>Sauce</GeckosText>
-            <View style={styles.optionList}>
-              {LUNCH_SAUCES.map((sauce) => {
-                const selected = selectedLunchSauce === sauce.name;
-                return (
-                  <Pressable
-                    key={sauce.name}
-                    onPress={() =>
-                      setSelectedLunchSauce((prev) =>
-                        prev === sauce.name ? undefined : sauce.name
-                      )
-                    }
-                    style={[styles.optionChip, selected && styles.optionChipSelected]}
-                  >
-                    <GeckosText style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                      {sauce.name}
-                    </GeckosText>
-                    <GeckosText style={[styles.optionPrice, selected && styles.optionLabelSelected]}>
-                      {sauce.price > 0 ? `+${money(sauce.price)}` : "Included"}
                     </GeckosText>
                   </Pressable>
                 );
@@ -548,10 +586,80 @@ const styles = StyleSheet.create({
     borderColor: GeckosColors.geckoGreen,
     backgroundColor: "rgba(20, 143, 26, 0.1)",
   },
+  choiceChipDisabled: {
+    opacity: 0.4,
+  },
   choiceText: {
     color: GeckosColors.text,
     fontSize: 14,
     fontWeight: "700",
+  },
+  choiceTextDisabled: {
+    color: GeckosColors.mutedText,
+  },
+  selectedChoicesList: {
+    gap: 10,
+    marginBottom: 12,
+  },
+  selectedChoiceCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: "rgba(20, 143, 26, 0.06)",
+    padding: 12,
+  },
+  selectedChoiceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectedChoiceText: {
+    color: GeckosColors.geckoGreen,
+    fontSize: 15,
+    fontWeight: "700",
+    flex: 1,
+  },
+  saucePickerWrap: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(20, 143, 26, 0.15)",
+  },
+  saucePickerLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: GeckosColors.mutedText,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  sauceScroll: {
+    marginHorizontal: -4,
+  },
+  sauceRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  saucePill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    backgroundColor: GeckosColors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  saucePillSelected: {
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: "rgba(20, 143, 26, 0.15)",
+  },
+  saucePillText: {
+    color: GeckosColors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  saucePillTextSelected: {
+    color: GeckosColors.geckoGreen,
   },
 
   instructionsInput: {

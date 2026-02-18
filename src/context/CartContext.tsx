@@ -8,7 +8,7 @@ export type CartItem = {
   variant?: string;
   selectedAddOns?: AddOn[];
   lunchChoices?: string[];
-  lunchSauce?: string;
+  lunchSauces?: string[];
   specialInstructions?: string;
   price: number;
   quantity: number;
