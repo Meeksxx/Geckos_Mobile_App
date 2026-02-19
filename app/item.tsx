@@ -14,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
 import { useCart } from "@/src/context/CartContext";
-import { AddOn, LUNCH_CHOICES, LUNCH_SAUCES, MENU_ITEMS } from "@/src/data/menu";
+import type { AddOn } from "@/src/data/menu";
+import { useMenu } from "@/src/context/MenuContext";
 import { GeckosColors } from "@/src/theme/colors";
 
 import { AMERICAN_FOOD_IMAGES } from "@/src/constants/American-Food-image";
@@ -88,8 +89,9 @@ function makeLineKey(input: {
 export default function ItemModal() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const { addItem } = useCart();
+  const { items: allItems, lunchChoices, lunchSauces } = useMenu();
 
-  const item = MENU_ITEMS.find((m) => m.id === itemId);
+  const item = allItems.find((m) => m.id === itemId);
   const isLunchSpecial = item?.categoryId === "lunch-specials";
 
   const parsedVariants = useMemo(() => {
@@ -130,8 +132,8 @@ export default function ItemModal() {
   );
   // Collect sauce add-ons from per-choice selections
   const chosenSauceAddOns = selectedLunchSauces
-    .map((name) => LUNCH_SAUCES.find((s) => s.name === name))
-    .filter((s): s is typeof LUNCH_SAUCES[number] => !!s);
+    .map((name) => lunchSauces.find((s) => s.name === name))
+    .filter((s): s is AddOn => !!s);
   const selectedAddOns = [...chosenMenuAddOns, ...chosenSauceAddOns];
   const addOnsUnitPrice = chosenMenuAddOns.reduce((sum, a) => sum + a.price, 0);
   const saucesPrice = chosenSauceAddOns.reduce((sum, a) => sum + a.price, 0);
@@ -340,7 +342,7 @@ export default function ItemModal() {
                         <GeckosText style={styles.saucePickerLabel}>Sauce:</GeckosText>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sauceScroll}>
                           <View style={styles.sauceRow}>
-                            {LUNCH_SAUCES.map((sauce) => {
+                            {lunchSauces.map((sauce) => {
                               const isSelected = selectedLunchSauces[idx] === sauce.name;
                               return (
                                 <Pressable
@@ -365,7 +367,7 @@ export default function ItemModal() {
 
             {/* Available choices */}
             <View style={styles.choiceWrap}>
-              {LUNCH_CHOICES.map((choice) => {
+              {lunchChoices.map((choice) => {
                 const disabled = selectedLunchChoices.length >= (item.choiceCount ?? 0);
                 return (
                   <Pressable

@@ -1,6 +1,7 @@
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
-import { MENU_CATEGORIES, MenuCategory } from "@/src/data/menu";
+import type { MenuCategory } from "@/src/data/menu";
+import { useMenu } from "@/src/context/MenuContext";
 import { GeckosColors } from "@/src/theme/colors";
 import { Stack, router } from "expo-router";
 import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
@@ -35,6 +36,7 @@ function CategoryRow({ item }: { item: MenuCategory }) {
 export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
+  const { categories } = useMenu();
 
   return (
     <>
@@ -68,7 +70,7 @@ export default function MenuScreen() {
 
       <AppContainer noPadding noBottomSafeArea>
         <FlatList
-          data={MENU_CATEGORIES}
+          data={categories}
           keyExtractor={(c) => c.id}
           renderItem={({ item }) => <CategoryRow item={item} />}
           ItemSeparatorComponent={() => <View style={styles.separator} />}

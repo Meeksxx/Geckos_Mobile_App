@@ -1,0 +1,341 @@
+// app/checkout.tsx — Payment selection modal
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useStripe } from "@stripe/stripe-react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { GeckosText } from "@/src/components/GeckosText";
+import { GeckosColors } from "@/src/theme/colors";
+import { useAuth } from "@/src/context/AuthContext";
+import { useCart } from "@/src/context/CartContext";
+import { supabase } from "@/src/lib/supabase";
+
+/* ─── Config ─────────────────────────────────────────────── */
+
+const EDGE_URL =
+  `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/create-payment-intent`;
+
+/* ─── Screen ─────────────────────────────────────────────── */
+
+export default function CheckoutScreen() {
+  const insets = useSafeAreaInsets();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { session } = useAuth();
+  const { items, subtotal, clearCart } = useCart();
+  const params = useLocalSearchParams<{
+    customerName: string;
+    customerPhone: string;
+    pickupTime: string;
+  }>();
+
+  const [loading, setLoading] = useState(false);
+
+  /* ── Shared order payload ─────────────────────────────── */
+  function buildOrderPayload(extra: Record<string, unknown>) {
+    return {
+      user_id: session?.user?.id ?? null,
+      customer_name: params.customerName,
+      customer_phone: params.customerPhone,
+      pickup_time: params.pickupTime || null,
+      status: "new",
+      items: items.map((i) => ({
+        lineKey: i.lineKey,
+        itemId: i.itemId,
+        name: i.name,
+        variant: i.variant ?? null,
+        selectedAddOns: i.selectedAddOns ?? [],
+        lunchChoices: i.lunchChoices ?? [],
+        lunchSauces: i.lunchSauces ?? [],
+        specialInstructions: i.specialInstructions ?? null,
+        price: i.price,
+        quantity: i.quantity,
+      })),
+      subtotal: Math.round(subtotal * 100) / 100,
+      ...extra,
+    };
+  }
+
+  /* ── Pay at Gecko's ───────────────────────────────────── */
+  async function handlePayAtRestaurant() {
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("orders").insert(
+        buildOrderPayload({
+          payment_method: "pay_at_restaurant",
+          payment_status: "pending",
+        })
+      );
+      if (error) throw error;
+      clearCart();
+      router.replace("/(tabs)/order");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Please try again.";
+      Alert.alert("Order Failed", msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── Pay with Stripe ──────────────────────────────────── */
+  async function handlePayNow() {
+    setLoading(true);
+    try {
+      const subtotalCents = Math.round(subtotal * 100);
+
+      // 1. Get client secret from Edge Function
+      const res = await fetch(EDGE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subtotalCents,
+          customerName: params.customerName,
+          customerPhone: params.customerPhone,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.clientSecret) {
+        throw new Error(json.error ?? "Could not initialize payment.");
+      }
+      const { clientSecret, paymentIntentId } = json as {
+        clientSecret: string;
+        paymentIntentId: string;
+      };
+
+      // 2. Initialize the Stripe payment sheet
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: "Gecko's at Lake Texoma",
+        paymentIntentClientSecret: clientSecret,
+        defaultBillingDetails: { name: params.customerName },
+        applePay: { merchantCountryCode: "US" },
+        googlePay: { merchantCountryCode: "US", testEnv: __DEV__ },
+        style: "alwaysDark",
+      });
+      if (initError) throw new Error(initError.message);
+
+      // 3. Present sheet to the user
+      const { error: payError } = await presentPaymentSheet();
+      if (payError) {
+        if (payError.code === "Canceled") { setLoading(false); return; }
+        throw new Error(payError.message);
+      }
+
+      // 4. Payment succeeded — insert order
+      const { error: insertError } = await supabase.from("orders").insert(
+        buildOrderPayload({
+          payment_method: "stripe",
+          payment_status: "paid",
+          stripe_payment_intent_id: paymentIntentId,
+          platform_fee_cents: Math.round(subtotalCents * 0.03),
+        })
+      );
+      if (insertError) throw insertError;
+
+      clearCart();
+      router.replace("/(tabs)/order");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Please try again.";
+      Alert.alert("Payment Failed", `${msg}\n\nYou can also pay when you pick up.`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── UI ───────────────────────────────────────────────── */
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Checkout",
+          headerStyle: { backgroundColor: GeckosColors.background },
+          headerTintColor: GeckosColors.text,
+          headerTitleStyle: { fontWeight: "900" },
+          headerShadowVisible: false,
+        }}
+      />
+
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Order summary */}
+        <View style={styles.summaryCard}>
+          <GeckosText style={styles.summaryLabel}>Order Total</GeckosText>
+          <GeckosText style={styles.summaryAmount}>${subtotal.toFixed(2)}</GeckosText>
+          <GeckosText style={styles.summaryNote}>
+            {items.reduce((n, i) => n + i.quantity, 0)} item
+            {items.reduce((n, i) => n + i.quantity, 0) !== 1 ? "s" : ""} for{" "}
+            {params.customerName}
+          </GeckosText>
+        </View>
+
+        <GeckosText style={styles.sectionTitle}>How would you like to pay?</GeckosText>
+
+        {/* Pay Now */}
+        <Pressable
+          onPress={handlePayNow}
+          disabled={loading}
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnGreen,
+            pressed && styles.btnPressed,
+            loading && styles.btnDisabled,
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="card-outline" size={21} color="#fff" />
+              <GeckosText style={styles.btnGreenText}>
+                Pay Now — ${subtotal.toFixed(2)}
+              </GeckosText>
+            </>
+          )}
+        </Pressable>
+
+        <GeckosText style={styles.subtext}>
+          Debit · Credit · Apple Pay · Google Pay · Secure via Stripe
+        </GeckosText>
+
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <GeckosText style={styles.dividerText}>or</GeckosText>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Pay at Gecko's */}
+        <Pressable
+          onPress={handlePayAtRestaurant}
+          disabled={loading}
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnOutline,
+            pressed && styles.btnPressed,
+            loading && styles.btnDisabled,
+          ]}
+        >
+          <Ionicons name="storefront-outline" size={21} color={GeckosColors.text} />
+          <GeckosText style={styles.btnOutlineText}>Pay at Gecko's</GeckosText>
+        </Pressable>
+
+        <GeckosText style={styles.subtext}>Pay when you pick up your order.</GeckosText>
+      </ScrollView>
+    </>
+  );
+}
+
+/* ─── Styles ─────────────────────────────────────────────── */
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: GeckosColors.background,
+  },
+  content: {
+    padding: 24,
+    gap: 14,
+  },
+  summaryCard: {
+    backgroundColor: GeckosColors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: GeckosColors.mutedText,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  summaryAmount: {
+    fontSize: 40,
+    fontWeight: "900",
+    color: GeckosColors.geckoGreen,
+    lineHeight: 48,
+  },
+  summaryNote: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: GeckosColors.text,
+    marginBottom: 4,
+  },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 999,
+  },
+  btnGreen: {
+    backgroundColor: GeckosColors.geckoGreen,
+    shadowColor: GeckosColors.geckoGreen,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  btnGreenText: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  btnOutline: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: GeckosColors.border,
+  },
+  btnOutlineText: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: GeckosColors.text,
+  },
+  btnPressed: { opacity: 0.88 },
+  btnDisabled: { opacity: 0.5 },
+  subtext: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    textAlign: "center",
+    marginTop: -6,
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: GeckosColors.border,
+  },
+  dividerText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: GeckosColors.mutedText,
+  },
+});

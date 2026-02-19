@@ -20,7 +20,8 @@ import { LUNCH_SPECIALS_IMAGES } from "@/src/constants/Lunch-Specials-image";
 import { NACHOS_IMAGES } from "@/src/constants/Nachos-image";
 import { QUESADILLAS_IMAGES } from "@/src/constants/Quesadillas-image";
 
-import { MENU_CATEGORIES, MENU_ITEMS, MenuItem } from "@/src/data/menu";
+import type { MenuItem } from "@/src/data/menu";
+import { useMenu } from "@/src/context/MenuContext";
 import { GeckosColors } from "@/src/theme/colors";
 
 /** Header sizing (same approach as menu.tsx) */
@@ -135,11 +136,12 @@ export default function CategoryScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const categoryId = String(id);
+  const { categories, items: allItems } = useMenu();
 
   const categoryTitle =
-    MENU_CATEGORIES.find((c) => c.id === categoryId)?.title ?? "Category";
+    categories.find((c) => c.id === categoryId)?.title ?? "Category";
 
-  const items = MENU_ITEMS.filter((m) => m.categoryId === categoryId);
+  const items = allItems.filter((m) => m.categoryId === categoryId);
 
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
 

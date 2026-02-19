@@ -4,9 +4,13 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { Animated, Image, StyleSheet, View } from "react-native";
 
+import { StripeProvider } from "@stripe/stripe-react-native";
 import { GeckosColors } from "@/src/theme/colors";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { CartProvider } from "@/src/context/CartContext";
+import { MenuProvider } from "@/src/context/MenuContext";
+
+const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -37,13 +41,19 @@ export default function RootLayout() {
   }, [isKitchenRoute, opacity]);
 
   return (
+    <StripeProvider
+      publishableKey={STRIPE_PK}
+      merchantIdentifier="merchant.com.zacmeeks.geckos"
+    >
     <AuthProvider>
+    <MenuProvider>
     <CartProvider>
       <View style={styles.root}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="item" options={{ presentation: "modal" }} />
           <Stack.Screen name="auth" options={{ presentation: "modal" }} />
+          <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
           <Stack.Screen name="kitchen" />
         </Stack>
 
@@ -62,7 +72,9 @@ export default function RootLayout() {
         )}
       </View>
     </CartProvider>
+    </MenuProvider>
     </AuthProvider>
+    </StripeProvider>
   );
 }
 

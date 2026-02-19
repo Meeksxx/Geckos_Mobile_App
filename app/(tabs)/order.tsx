@@ -296,7 +296,7 @@ export default function OrderScreen() {
     Linking.openURL(`tel:${PHONE_DIAL}`);
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = () => {
     if (!isLoggedIn) {
       router.push("/auth" as any);
       return;
@@ -309,49 +309,15 @@ export default function OrderScreen() {
       Alert.alert("Phone Required", "Please enter a phone number so we can reach you.");
       return;
     }
-
-    setOrderState("submitting");
-
-    try {
-      const { data: insertedOrder, error } = await supabase.from("orders").insert({
-        user_id: session?.user?.id ?? null,
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        pickup_time: pickupTime.trim() || null,
-        status: "new",
-        items: items.map((i) => ({
-          lineKey: i.lineKey,
-          itemId: i.itemId,
-          name: i.name,
-          variant: i.variant,
-          selectedAddOns: i.selectedAddOns ?? [],
-          lunchChoices: i.lunchChoices ?? [],
-          lunchSauces: i.lunchSauces ?? [],
-          specialInstructions: i.specialInstructions ?? null,
-          price: i.price,
-          quantity: i.quantity,
-        })),
-        subtotal: Math.round(subtotal * 100) / 100,
-      }).select("id").single();
-
-      if (error) throw error;
-
-      setActiveOrderId(insertedOrder?.id ?? null);
-      setOrderState("confirmed");
-    } catch (error: any) {
-      setOrderState("cart");
-      const details = [error?.code, error?.message].filter(Boolean).join(": ");
-      Alert.alert(
-        "Order Failed",
-        details
-          ? `Could not place order. ${details}`
-          : "Something went wrong placing your order. Please try again or call us directly.",
-        [
-          { text: "Try Again" },
-          { text: "Call Us", onPress: handleCall },
-        ]
-      );
-    }
+    // Order insert + payment handled in checkout.tsx
+    router.push({
+      pathname: "/checkout",
+      params: {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        pickupTime: pickupTime.trim(),
+      },
+    } as any);
   };
 
   const handleDone = () => {
@@ -512,7 +478,7 @@ export default function OrderScreen() {
               >
                 <Ionicons name="checkmark-circle-outline" size={20} color={GeckosColors.background} />
                 <GeckosText style={styles.placeOrderText}>
-                  {orderState === "submitting" ? "Placing Order..." : `Place Order — $${subtotal.toFixed(2)}`}
+                  {`Continue to Payment — $${subtotal.toFixed(2)}`}
                 </GeckosText>
               </Pressable>
             </View>

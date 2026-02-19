@@ -45,6 +45,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#0B0C0F"
         }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.zacmeeks.geckos",
+          "enableGooglePay": true
+        }
       ]
     ],
     "experiments": {
