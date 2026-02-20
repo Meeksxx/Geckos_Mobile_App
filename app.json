@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.zacmeeks.geckos",
       "buildNumber": "2",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Used to scan credit cards for faster payment entry."
       }
     },
     "android": {
