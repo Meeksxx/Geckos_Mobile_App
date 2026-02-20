@@ -23,13 +23,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { subtotalCents, customerName, customerPhone } = await req.json() as {
+    const { subtotalCents, totalCents, customerName, customerPhone } = await req.json() as {
       subtotalCents: number;
+      totalCents: number;
       customerName: string;
       customerPhone: string;
     };
 
-    if (!subtotalCents || subtotalCents < 50) {
+    if (!totalCents || totalCents < 50) {
       return new Response(
         JSON.stringify({ error: "Invalid amount — minimum is $0.50" }),
         { status: 400, headers: { ...CORS, "Content-Type": "application/json" } }
@@ -39,7 +40,7 @@ Deno.serve(async (req: Request) => {
     const applicationFeeAmount = Math.round(subtotalCents * PLATFORM_FEE);
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: subtotalCents,
+      amount: totalCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
       application_fee_amount: applicationFeeAmount,

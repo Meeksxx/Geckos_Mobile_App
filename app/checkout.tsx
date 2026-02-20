@@ -39,6 +39,13 @@ export default function CheckoutScreen() {
 
   const [loading, setLoading] = useState(false);
 
+  /* ── Fee calculations ─────────────────────────────────── */
+  const subtotalCents = Math.round(subtotal * 100);
+  const processingFeeCents = Math.round(subtotalCents * 0.029) + 30; // 2.9% + $0.30
+  const totalCents = subtotalCents + processingFeeCents;
+  const processingFee = processingFeeCents / 100;
+  const total = totalCents / 100;
+
   /* ── Shared order payload ─────────────────────────────── */
   function buildOrderPayload(extra: Record<string, unknown>) {
     return {
@@ -89,14 +96,13 @@ export default function CheckoutScreen() {
   async function handlePayNow() {
     setLoading(true);
     try {
-      const subtotalCents = Math.round(subtotal * 100);
-
       // 1. Get client secret from Edge Function
       const res = await fetch(EDGE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subtotalCents,
+          totalCents,
           customerName: params.customerName,
           customerPhone: params.customerPhone,
         }),
@@ -170,13 +176,25 @@ export default function CheckoutScreen() {
       >
         {/* Order summary */}
         <View style={styles.summaryCard}>
-          <GeckosText style={styles.summaryLabel}>Order Total</GeckosText>
-          <GeckosText style={styles.summaryAmount}>${subtotal.toFixed(2)}</GeckosText>
           <GeckosText style={styles.summaryNote}>
             {items.reduce((n, i) => n + i.quantity, 0)} item
             {items.reduce((n, i) => n + i.quantity, 0) !== 1 ? "s" : ""} for{" "}
             {params.customerName}
           </GeckosText>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryRow}>
+            <GeckosText style={styles.summaryRowLabel}>Subtotal</GeckosText>
+            <GeckosText style={styles.summaryRowValue}>${subtotal.toFixed(2)}</GeckosText>
+          </View>
+          <View style={styles.summaryRow}>
+            <GeckosText style={styles.summaryRowLabel}>Processing fee</GeckosText>
+            <GeckosText style={styles.summaryRowValue}>${processingFee.toFixed(2)}</GeckosText>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryRow}>
+            <GeckosText style={styles.summaryTotalLabel}>Total</GeckosText>
+            <GeckosText style={styles.summaryTotalValue}>${total.toFixed(2)}</GeckosText>
+          </View>
         </View>
 
         <GeckosText style={styles.sectionTitle}>How would you like to pay?</GeckosText>
@@ -198,7 +216,7 @@ export default function CheckoutScreen() {
             <>
               <Ionicons name="card-outline" size={21} color="#fff" />
               <GeckosText style={styles.btnGreenText}>
-                Pay Now — ${subtotal.toFixed(2)}
+                Pay Now — ${total.toFixed(2)}
               </GeckosText>
             </>
           )}
@@ -256,25 +274,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: GeckosColors.mutedText,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  summaryAmount: {
-    fontSize: 40,
-    fontWeight: "900",
-    color: GeckosColors.geckoGreen,
-    lineHeight: 48,
-  },
   summaryNote: {
     fontSize: 14,
     fontWeight: "600",
     color: GeckosColors.mutedText,
-    marginTop: 4,
+    marginBottom: 4,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: GeckosColors.border,
+    alignSelf: "stretch",
+    marginVertical: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignSelf: "stretch",
+    paddingHorizontal: 4,
+  },
+  summaryRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+  },
+  summaryRowValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: GeckosColors.text,
+  },
+  summaryTotalLabel: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: GeckosColors.text,
+  },
+  summaryTotalValue: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: GeckosColors.geckoGreen,
   },
   sectionTitle: {
     fontSize: 18,
