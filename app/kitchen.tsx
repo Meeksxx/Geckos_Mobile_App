@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import type { Session } from "@supabase/supabase-js";
+import { router } from "expo-router";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
@@ -848,6 +849,9 @@ export default function KitchenScreen() {
             </GeckosText>
           </View>
           <View style={styles.headerActions}>
+            <Pressable onPress={() => router.push("/menu-content" as any)} style={({ pressed }) => [styles.signOutButton, pressed ? styles.buttonPressed : null]}>
+              <GeckosText style={styles.signOutButtonText}>Menu</GeckosText>
+            </Pressable>
             <Pressable onPress={handleSignOut} style={({ pressed }) => [styles.signOutButton, pressed ? styles.buttonPressed : null]}>
               <GeckosText style={styles.signOutButtonText}>Sign Out</GeckosText>
             </Pressable>

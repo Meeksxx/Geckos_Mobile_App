@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import type { Session } from "@supabase/supabase-js";
+import { router } from "expo-router";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
@@ -573,12 +574,20 @@ export default function ContentScreen() {
                 {announcements.filter((a) => a.active).length !== 1 ? "s" : ""} showing to customers
               </GeckosText>
             </View>
-            <Pressable
-              onPress={handleSignOut}
-              style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
-            >
-              <GeckosText style={styles.signOutButtonText}>Sign Out</GeckosText>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => router.push("/menu-content" as any)}
+                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
+              >
+                <GeckosText style={styles.signOutButtonText}>Menu</GeckosText>
+              </Pressable>
+              <Pressable
+                onPress={handleSignOut}
+                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
+              >
+                <GeckosText style={styles.signOutButtonText}>Sign Out</GeckosText>
+              </Pressable>
+            </View>
           </View>
 
           {/* New post button */}
@@ -698,6 +707,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerTitle: {
     fontSize: 26,
