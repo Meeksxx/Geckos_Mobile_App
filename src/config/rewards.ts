@@ -1,8 +1,13 @@
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
+
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
 export type RewardConfig = {
   id: string;
   points: number;
   label: string;
-  icon: string;
+  icon: IoniconName;
   description: string;
   /** Discount applied to the order subtotal, in cents */
   discountCents: number;

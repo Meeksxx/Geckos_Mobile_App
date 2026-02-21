@@ -288,7 +288,7 @@ export default function CheckoutScreen() {
           ]}
         >
           <Ionicons name="storefront-outline" size={21} color={GeckosColors.text} />
-          <GeckosText style={styles.btnOutlineText}>Pay at Gecko's</GeckosText>
+          <GeckosText style={styles.btnOutlineText}>Pay at Gecko&apos;s</GeckosText>
         </Pressable>
 
         <GeckosText style={styles.subtext}>Pay when you pick up your order.</GeckosText>

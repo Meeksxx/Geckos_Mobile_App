@@ -28,7 +28,7 @@ type KitchenOrderItem = {
   name?: string;
   quantity?: number;
   variant?: string | null;
-  selectedAddOns?: Array<{ name?: string; price?: number }>;
+  selectedAddOns?: { name?: string; price?: number }[];
   lunchChoices?: string[];
   lunchSauce?: string | null;
   specialInstructions?: string | null;

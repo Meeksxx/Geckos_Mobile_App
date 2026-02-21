@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Linking,
@@ -345,7 +344,7 @@ export default function OrderScreen() {
       <View style={styles.closedBannerText}>
         <GeckosText style={styles.closedBannerTitle}>Not Accepting Orders</GeckosText>
         <GeckosText style={styles.closedBannerBody}>
-          We're not taking online orders right now. Call us to place an order.
+          We&apos;re not taking online orders right now. Call us to place an order.
         </GeckosText>
       </View>
       <Pressable onPress={handleCall} style={styles.closedCallBtn} hitSlop={8}>

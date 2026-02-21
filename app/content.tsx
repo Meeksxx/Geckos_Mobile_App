@@ -366,7 +366,7 @@ function Unauthorized({ onSignOut }: { onSignOut: () => void }) {
   return (
     <View style={styles.centerState}>
       <Ionicons name="lock-closed-outline" size={36} color={GeckosColors.chiliRed} />
-      <GeckosText style={styles.stateText}>You don't have staff access.</GeckosText>
+      <GeckosText style={styles.stateText}>You don&apos;t have staff access.</GeckosText>
       <Pressable
         onPress={onSignOut}
         style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
@@ -567,7 +567,7 @@ export default function ContentScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <GeckosText style={styles.headerTitle}>What's Happening</GeckosText>
+              <GeckosText style={styles.headerTitle}>What&apos;s Happening</GeckosText>
               <GeckosText style={styles.headerSub}>
                 {announcements.filter((a) => a.active).length} active post
                 {announcements.filter((a) => a.active).length !== 1 ? "s" : ""} showing to customers
@@ -611,7 +611,7 @@ export default function ContentScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="megaphone-outline" size={40} color={GeckosColors.mutedText} />
               <GeckosText style={styles.emptyStateText}>
-                No posts yet. Tap "New Post" to add one.
+                No posts yet. Tap &quot;New Post&quot; to add one.
               </GeckosText>
             </View>
           ) : (
@@ -923,6 +923,16 @@ const styles = StyleSheet.create({
     backgroundColor: GeckosColors.background,
     borderWidth: 1,
     borderColor: GeckosColors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBtnDanger: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: GeckosColors.chiliRed,
+    borderWidth: 1,
+    borderColor: GeckosColors.chiliRed,
     alignItems: "center",
     justifyContent: "center",
   },

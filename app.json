@@ -20,7 +20,9 @@
       "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Used to scan credit cards for faster payment entry."
+        "NSCameraUsageDescription": "Used to scan credit cards for faster payment entry.",
+        "NSPhotoLibraryUsageDescription": "Used so staff can choose announcement photos from the photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save and manage selected images for announcements."
       }
     },
     "android": {

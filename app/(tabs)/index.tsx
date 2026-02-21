@@ -52,7 +52,7 @@ const CATEGORIES = [
   { id: "local-favorites",   label: "Local Favorites",   image: require("../../assets/images/categories/local-favorites.jpg") },
   { id: "appetizers",        label: "Appetizers",         image: require("../../assets/images/categories/appetizers.jpg") },
   { id: "fajitas",           label: "Fajitas",            image: require("../../assets/images/categories/fajitas.jpg") },
-  { id: "american-food",     label: "Burgers",            image: require("../../assets/images/categories/american-food.jpg") },
+  { id: "american-food",     label: "American",           image: require("../../assets/images/categories/american-food.jpg") },
   { id: "nachos",            label: "Nachos",             image: require("../../assets/images/categories/nachos.jpg") },
   { id: "house-specialties", label: "House Specialties",  image: require("../../assets/images/categories/house-specialties.jpg") },
 ] as const;
@@ -353,9 +353,9 @@ export default function HomeScreen() {
               ) : (
                 <>
                   <GeckosText style={styles.heroGreetingLine}>Welcome to</GeckosText>
-                  <GeckosText style={styles.heroGreetingBrand}>Gecko's</GeckosText>
+                  <GeckosText style={styles.heroGreetingBrand}>Gecko&apos;s</GeckosText>
                   <GeckosText style={styles.heroGreetingSub}>
-                    Lake Texoma's favorite Mexican food
+                    Lake Texoma&apos;s favorite Mexican food
                   </GeckosText>
                 </>
               )}
@@ -427,7 +427,7 @@ export default function HomeScreen() {
             {/* What's Happening */}
             {announcements.length > 0 && (
               <View style={styles.announcementsSection}>
-                <GeckosText style={styles.sectionTitle}>What's Happening</GeckosText>
+                <GeckosText style={styles.sectionTitle}>What&apos;s Happening</GeckosText>
                 {announcements.map((item) => (
                   <View key={item.id} style={styles.announcementCard}>
                     {item.image_url ? (

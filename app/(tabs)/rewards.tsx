@@ -52,7 +52,7 @@ function safeOpenUrl(url: string) {
   if (!url) return;
   if (url.startsWith("tel:") && Platform.OS === "ios" && Platform.isPad) {
     const number = url.replace("tel:", "");
-    Alert.alert("Call Gecko's", number, [{ text: "OK" }]);
+    Alert.alert("Call Gecko&apos;s", number, [{ text: "OK" }]);
     return;
   }
   Linking.openURL(url).catch(() => {});
@@ -148,7 +148,7 @@ function SignInForRewards() {
         <View style={styles.signInIconWrap}>
           <Ionicons name="star" size={32} color={GeckosColors.geckoGreen} />
         </View>
-        <GeckosText style={styles.signInTitle}>Earn Gecko's Rewards</GeckosText>
+        <GeckosText style={styles.signInTitle}>Earn Gecko&apos;s Rewards</GeckosText>
         <GeckosText style={styles.signInBody}>
           Sign in to earn 10 pts for every $1 you spend. Redeem for free drinks,
           appetizers, and more.
@@ -353,7 +353,7 @@ export default function RewardsScreen() {
                       </>
                     ) : (
                       <GeckosText style={styles.progressLabel}>
-                        You've unlocked all rewards!
+                        You&apos;ve unlocked all rewards!
                       </GeckosText>
                     )}
                   </>
@@ -438,7 +438,7 @@ export default function RewardsScreen() {
                   Every Tuesday • All Year Long
                 </GeckosText>
                 <GeckosText style={styles.heroOverlayBody}>
-                  Bring your crew — Tuesday is Margarita Day at Gecko's.
+                  Bring your crew — Tuesday is Margarita Day at Gecko&apos;s.
                 </GeckosText>
               </View>
             </View>
