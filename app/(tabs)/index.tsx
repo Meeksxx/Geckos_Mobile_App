@@ -244,6 +244,14 @@ function LocationModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 /* ─────────────────────── SCREEN ─────────────────────── */
 
+type Announcement = {
+  id: string;
+  title: string;
+  body: string | null;
+  emoji: string;
+  image_url: string | null;
+};
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
@@ -252,6 +260,7 @@ export default function HomeScreen() {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   const fetchPoints = useCallback(async () => {
     if (!session?.user?.id) { setTotalPoints(null); setDisplayName(null); return; }
@@ -264,6 +273,16 @@ export default function HomeScreen() {
   }, [session?.user?.id]);
 
   useEffect(() => { fetchPoints(); }, [fetchPoints]);
+
+  useEffect(() => {
+    supabase
+      .from("announcements")
+      .select("id, title, body, emoji, image_url")
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setAnnouncements(data ?? []));
+  }, []);
 
   // Cart-aware primary CTA: if items in cart → go to order, else → browse menu
   const primaryLabel = itemCount > 0
@@ -404,6 +423,33 @@ export default function HomeScreen() {
                 <CategoryCard key={cat.id} id={cat.id} label={cat.label} image={cat.image} />
               ))}
             </View>
+
+            {/* What's Happening */}
+            {announcements.length > 0 && (
+              <View style={styles.announcementsSection}>
+                <GeckosText style={styles.sectionTitle}>What's Happening</GeckosText>
+                {announcements.map((item) => (
+                  <View key={item.id} style={styles.announcementCard}>
+                    {item.image_url ? (
+                      <Image
+                        source={{ uri: item.image_url }}
+                        style={styles.announcementImage}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                    <View style={styles.announcementContent}>
+                      <GeckosText style={styles.announcementEmoji}>{item.emoji}</GeckosText>
+                      <View style={styles.announcementBody}>
+                        <GeckosText style={styles.announcementTitle}>{item.title}</GeckosText>
+                        {item.body ? (
+                          <GeckosText style={styles.announcementText}>{item.body}</GeckosText>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* Tuesday Special banner */}
             <View style={styles.specialBanner}>
@@ -751,6 +797,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     color: "#fff",
+    lineHeight: 18,
+  },
+
+  /* ── WHAT'S HAPPENING ── */
+  announcementsSection: {
+    gap: 10,
+  },
+  announcementCard: {
+    backgroundColor: GeckosColors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    overflow: "hidden",
+  },
+  announcementImage: {
+    width: "100%",
+    height: 160,
+  },
+  announcementContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 14,
+  },
+  announcementEmoji: {
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  announcementBody: {
+    flex: 1,
+    gap: 3,
+  },
+  announcementTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: GeckosColors.text,
+  },
+  announcementText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
     lineHeight: 18,
   },
 

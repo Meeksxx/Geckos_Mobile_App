@@ -4,13 +4,11 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { Animated, Image, StyleSheet, View } from "react-native";
 
-import { StripeProvider } from "@stripe/stripe-react-native";
 import { GeckosColors } from "@/src/theme/colors";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { CartProvider } from "@/src/context/CartContext";
 import { MenuProvider } from "@/src/context/MenuContext";
-
-const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+import StripeWrapper from "@/src/components/StripeWrapper";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -41,10 +39,7 @@ export default function RootLayout() {
   }, [isKitchenRoute, opacity]);
 
   return (
-    <StripeProvider
-      publishableKey={STRIPE_PK}
-      merchantIdentifier="merchant.com.zacmeeks.geckos"
-    >
+    <StripeWrapper>
     <AuthProvider>
     <MenuProvider>
     <CartProvider>
@@ -74,7 +69,7 @@ export default function RootLayout() {
     </CartProvider>
     </MenuProvider>
     </AuthProvider>
-    </StripeProvider>
+    </StripeWrapper>
   );
 }
 

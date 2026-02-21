@@ -20,11 +20,9 @@ import { GeckosText } from "@/src/components/GeckosText";
 import { GeckosColors } from "@/src/theme/colors";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/src/lib/supabase";
+import { REWARDS, type RewardConfig } from "@/src/config/rewards";
 
 /* ─────────────────────── CONFIG ─────────────────────── */
-
-const EVENTS_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQwCbEHB99zyAVu3LnuHK5lum6Ske0flTYmSCynDsJdNwfyEx-LV9evVS-ZVUOCj_O461BjR7yMDYPN/pub?output=csv";
 
 const PHONE_DISPLAY = "580-564-9599";
 const PHONE_DIAL = "5805649599";
@@ -35,58 +33,10 @@ const HEADER_BAR_HEIGHT = 48;
 
 /* ─────────────────────── REWARDS CONFIG ─────────────────────── */
 
-type Reward = {
-  id: string;
-  points: number;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  description: string;
-};
-
-const REWARDS: Reward[] = [
-  {
-    id: "drink",
-    points: 250,
-    label: "Free Drink",
-    icon: "cafe",
-    description: "Any fountain drink or iced tea on us!",
-  },
-  {
-    id: "five_off",
-    points: 500,
-    label: "$5 Off Order",
-    icon: "pricetag",
-    description: "Take $5 off any order.",
-  },
-  {
-    id: "appetizer",
-    points: 1000,
-    label: "Free Appetizer",
-    icon: "restaurant",
-    description: "Any appetizer — on the house.",
-  },
-  {
-    id: "entree",
-    points: 2000,
-    label: "Free Entrée",
-    icon: "star",
-    description: "Pick any entrée, free!",
-  },
-];
+// REWARDS and RewardConfig are imported from @/src/config/rewards
+type Reward = RewardConfig;
 
 /* ─────────────────────── TYPES ─────────────────────── */
-
-type EventType = "music" | "special" | "closure" | "other";
-
-type GeckosEvent = {
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  details: string;
-  type: EventType;
-  imageUrl: string;
-};
 
 type PointsTransaction = {
   id: string;
@@ -106,83 +56,6 @@ function safeOpenUrl(url: string) {
     return;
   }
   Linking.openURL(url).catch(() => {});
-}
-
-function parseCSV(csvText: string): Record<string, string>[] {
-  const rows: string[][] = [];
-  let currentField = "";
-  let currentRow: string[] = [];
-  let inQuotes = false;
-
-  const pushField = () => {
-    currentRow.push(currentField);
-    currentField = "";
-  };
-  const pushRow = () => {
-    const isAllEmpty = currentRow.every((c) => (c ?? "").trim() === "");
-    if (!isAllEmpty) rows.push(currentRow);
-    currentRow = [];
-  };
-
-  for (let i = 0; i < csvText.length; i++) {
-    const char = csvText[i];
-    const next = csvText[i + 1];
-    if (char === '"') {
-      if (inQuotes && next === '"') { currentField += '"'; i++; }
-      else inQuotes = !inQuotes;
-      continue;
-    }
-    if (char === "," && !inQuotes) { pushField(); continue; }
-    if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && next === "\n") i++;
-      pushField(); pushRow(); continue;
-    }
-    currentField += char;
-  }
-  pushField();
-  pushRow();
-
-  if (rows.length === 0) return [];
-  const headers = rows[0].map((h) => (h ?? "").trim());
-  return rows.slice(1).map((r) => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = (r[idx] ?? "").trim(); });
-    return obj;
-  });
-}
-
-function normalizeEventType(value: string): EventType {
-  const v = (value ?? "").trim().toLowerCase();
-  if (v === "music") return "music";
-  if (v === "special") return "special";
-  if (v === "closure") return "closure";
-  return "other";
-}
-
-function formatEventDate(yyyyMmDd: string) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((yyyyMmDd ?? "").trim());
-  if (!m) return yyyyMmDd;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  if (Number.isNaN(d.getTime())) return yyyyMmDd;
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
-
-function formatTimeRange(start: string, end: string) {
-  const s = (start ?? "").trim();
-  const e = (end ?? "").trim();
-  if (!s && !e) return "";
-  const toPretty = (t: string) => {
-    const match = /^(\d{1,2}):(\d{2})$/.exec(t);
-    if (!match) return t;
-    const hh = Number(match[1]);
-    const mm = match[2];
-    const ampm = hh >= 12 ? "PM" : "AM";
-    const h12 = hh % 12 === 0 ? 12 : hh % 12;
-    return `${h12}:${mm} ${ampm}`;
-  };
-  if (s && e) return `${toPretty(s)}–${toPretty(e)}`;
-  if (s) return toPretty(s);
-  return toPretty(e);
 }
 
 function formatRelativeDate(iso: string): string {
@@ -214,22 +87,6 @@ function Card({
   return (
     <View style={[styles.card, noPadding ? styles.cardNoPadding : null]}>
       {children}
-    </View>
-  );
-}
-
-function EventTypePill({ type }: { type: EventType }) {
-  const { label, icon } = useMemo(() => {
-    if (type === "music") return { label: "Live Music", icon: "musical-notes" as const };
-    if (type === "special") return { label: "Special", icon: "pricetag" as const };
-    if (type === "closure") return { label: "Closure", icon: "alert-circle" as const };
-    return { label: "Update", icon: "information-circle" as const };
-  }, [type]);
-
-  return (
-    <View style={styles.pill}>
-      <Ionicons name={icon} size={14} color={GeckosColors.text} />
-      <GeckosText style={styles.pillText}>{label}</GeckosText>
     </View>
   );
 }
@@ -314,54 +171,13 @@ export default function RewardsScreen() {
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
   const { session, isLoggedIn } = useAuth();
 
-  /* ── Events state ── */
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [events, setEvents] = useState<GeckosEvent[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [badEventImages, setBadEventImages] = useState<Record<string, true>>({});
-
   /* ── Points state ── */
+  const [refreshing, setRefreshing] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
   const [lifetimePoints, setLifetimePoints] = useState(0);
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
   const [pointsLoading, setPointsLoading] = useState(false);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
-
-  /* ── Events fetch ── */
-  const fetchEvents = useCallback(async () => {
-    setErrorMessage(null);
-    setLoading(true);
-    try {
-      const res = await fetch(EVENTS_CSV_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const csv = await res.text();
-      const records = parseCSV(csv);
-      const parsed: GeckosEvent[] = records
-        .map((r) => {
-          const title = (r.title ?? "").trim();
-          const date = (r.date ?? "").trim();
-          if (!title || !date) return null;
-          return {
-            title,
-            date,
-            startTime: (r.startTime ?? "").trim(),
-            endTime: (r.endTime ?? "").trim(),
-            details: (r.details ?? "").trim(),
-            type: normalizeEventType(r.type ?? ""),
-            imageUrl: (r.imageUrl ?? "").trim(),
-          } as GeckosEvent;
-        })
-        .filter(Boolean) as GeckosEvent[];
-      parsed.sort((a, b) => a.date.localeCompare(b.date));
-      setEvents(parsed);
-    } catch {
-      setErrorMessage("Couldn't load updates right now. Pull to refresh, or try again later.");
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   /* ── Points fetch ── */
   const fetchPoints = useCallback(async () => {
@@ -386,14 +202,13 @@ export default function RewardsScreen() {
     setPointsLoading(false);
   }, [session?.user?.id]);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { fetchPoints(); }, [fetchPoints]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchEvents(), fetchPoints()]);
+    await fetchPoints();
     setRefreshing(false);
-  }, [fetchEvents, fetchPoints]);
+  }, [fetchPoints]);
 
   /* ── Reward redemption ── */
   const handleRedeem = useCallback(
@@ -628,84 +443,6 @@ export default function RewardsScreen() {
               </View>
             </View>
           </Card>
-
-          {/* ── WHAT'S HAPPENING ── */}
-          <View style={styles.sectionRow}>
-            <SectionTitle>What's Happening</SectionTitle>
-            <Pressable
-              onPress={onRefresh}
-              style={({ pressed }) => [
-                styles.refreshButton,
-                pressed ? styles.refreshPressed : null,
-              ]}
-            >
-              <Ionicons name="refresh" size={16} color={GeckosColors.text} />
-              <GeckosText style={styles.refreshText}>Refresh</GeckosText>
-            </Pressable>
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={GeckosColors.geckoGreen} />
-              <GeckosText style={styles.loadingText}>Loading updates…</GeckosText>
-            </View>
-          ) : errorMessage ? (
-            <Card>
-              <View style={styles.noticeRow}>
-                <Ionicons name="alert-circle" size={18} color={GeckosColors.mutedText} />
-                <GeckosText style={styles.noticeText}>{errorMessage}</GeckosText>
-              </View>
-            </Card>
-          ) : events.length === 0 ? (
-            <Card>
-              <View style={styles.noticeRow}>
-                <Ionicons name="information-circle" size={18} color={GeckosColors.mutedText} />
-                <GeckosText style={styles.noticeText}>
-                  No updates posted right now. Pull to refresh, or check back soon.
-                </GeckosText>
-              </View>
-            </Card>
-          ) : (
-            <View style={{ gap: 16 }}>
-              {events.map((ev, idx) => {
-                const dateLabel = formatEventDate(ev.date);
-                const timeLabel = formatTimeRange(ev.startTime, ev.endTime);
-                const key = `${ev.title}-${ev.date}-${idx}`;
-                const showImage = !!ev.imageUrl && !badEventImages[ev.imageUrl];
-
-                return (
-                  <Card key={key} noPadding>
-                    {showImage ? (
-                      <Image
-                        source={{ uri: ev.imageUrl }}
-                        style={styles.eventImage}
-                        resizeMode="cover"
-                        onError={() =>
-                          setBadEventImages((prev) => ({ ...prev, [ev.imageUrl]: true }))
-                        }
-                      />
-                    ) : null}
-                    <View style={styles.eventInner}>
-                      <View style={styles.eventTopRow}>
-                        <EventTypePill type={ev.type} />
-                        <GeckosText style={styles.eventDate}>{dateLabel}</GeckosText>
-                      </View>
-                      <GeckosText style={styles.eventTitle}>{ev.title}</GeckosText>
-                      {!!timeLabel && (
-                        <View style={styles.eventMetaRow}>
-                          <Ionicons name="time" size={14} color={GeckosColors.mutedText} />
-                          <GeckosText style={styles.eventMetaText}>{timeLabel}</GeckosText>
-                        </View>
-                      )}
-                      {!!ev.details && (
-                        <GeckosText style={styles.eventDetails}>{ev.details}</GeckosText>
-                      )}
-                    </View>
-                  </Card>
-                );
-              })}
-            </View>
-          )}
 
           {/* ── CALL BUTTON ── */}
           <Pressable

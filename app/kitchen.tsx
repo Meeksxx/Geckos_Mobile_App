@@ -19,6 +19,9 @@ import { GeckosText } from "@/src/components/GeckosText";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
+const REFUND_EDGE_URL =
+  `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/refund-payment`;
+
 type OrderStatus = "new" | "accepted" | "preparing" | "ready" | "picked_up" | "cancelled";
 
 type KitchenOrderItem = {
@@ -40,6 +43,12 @@ type KitchenOrder = {
   status: OrderStatus | null;
   created_at: string | null;
   items: KitchenOrderItem[] | null;
+  reward_label: string | null;
+  reward_discount: number | null;
+  reward_points_cost: number | null;
+  payment_method: string | null;
+  stripe_payment_intent_id: string | null;
+  user_id: string | null;
 };
 
 type KitchenDay = {
@@ -225,10 +234,12 @@ function Unauthorized({ onSignOut }: { onSignOut: () => Promise<void> }) {
 function OrderCard({
   order,
   onUpdateStatus,
+  onCancel,
   busy,
 }: {
   order: KitchenOrder;
   onUpdateStatus: (orderId: string, nextStatus: OrderStatus) => Promise<void>;
+  onCancel: (order: KitchenOrder) => Promise<void>;
   busy: boolean;
 }) {
   const currentStatus = (order.status ?? "new") as OrderStatus;
@@ -239,27 +250,30 @@ function OrderCard({
   const statusColor = getStatusColor(order.status);
   const subtotal = Number(order.subtotal ?? 0).toFixed(2);
   const pickupDisplay = order.pickup_time?.trim() || "ASAP";
+  const isStripePaid = order.payment_method === "stripe";
 
   const handlePressStatus = useCallback(
     (targetStatus: OrderStatus) => {
       if (targetStatus === "cancelled") {
+        const cancelMsg = isStripePaid
+          ? "This order was paid via Stripe. A full refund will be issued automatically."
+          : "This marks the ticket as cancelled. You can undo it.";
+
         if (Platform.OS === "web") {
           const confirmed = typeof globalThis.confirm === "function"
-            ? globalThis.confirm("Cancel this order? You can undo it.")
+            ? globalThis.confirm(`Cancel this order? ${cancelMsg}`)
             : true;
           if (!confirmed) return;
-          void onUpdateStatus(order.id, targetStatus);
+          void onCancel(order);
           return;
         }
 
-        Alert.alert("Cancel Order?", "This marks the ticket as cancelled. You can undo it.", [
+        Alert.alert("Cancel Order?", cancelMsg, [
           { text: "Keep", style: "cancel" },
           {
-            text: "Cancel Order",
+            text: isStripePaid ? "Cancel & Refund" : "Cancel Order",
             style: "destructive",
-            onPress: () => {
-              void onUpdateStatus(order.id, targetStatus);
-            },
+            onPress: () => { void onCancel(order); },
           },
         ]);
         return;
@@ -267,7 +281,7 @@ function OrderCard({
 
       void onUpdateStatus(order.id, targetStatus);
     },
-    [onUpdateStatus, order.id]
+    [isStripePaid, onCancel, onUpdateStatus, order]
   );
 
   return (
@@ -329,6 +343,16 @@ function OrderCard({
           </View>
         ))}
       </View>
+
+      {order.reward_label ? (
+        <View style={styles.rewardBadge}>
+          <Ionicons name="star" size={14} color={GeckosColors.geckoGreen} />
+          <GeckosText style={styles.rewardBadgeText}>
+            Reward: {order.reward_label}
+            {order.reward_discount ? ` (-$${Number(order.reward_discount).toFixed(2)})` : ""}
+          </GeckosText>
+        </View>
+      ) : null}
 
       <View style={styles.cardFooter}>
         <GeckosText style={styles.subtotalText}>Subtotal: ${subtotal}</GeckosText>
@@ -451,7 +475,7 @@ export default function KitchenScreen() {
     setErrorMessage(null);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, customer_name, customer_phone, pickup_time, subtotal, status, created_at, items")
+      .select("id, customer_name, customer_phone, pickup_time, subtotal, status, created_at, items, reward_label, reward_discount, reward_points_cost, payment_method, stripe_payment_intent_id, user_id")
       .order("created_at", { ascending: false })
       .limit(150);
 
@@ -664,6 +688,31 @@ export default function KitchenScreen() {
     setOrderView("active");
   }, [closedDays, historyDayId, showHistory]);
 
+  const handleDeleteDay = useCallback(async (day: KitchenDay) => {
+    const performDelete = async () => {
+      const { error } = await supabase
+        .from("kitchen_days")
+        .delete()
+        .eq("id", day.id);
+      if (error) {
+        Alert.alert("Delete Failed", error.message);
+        return;
+      }
+      setDays((prev) => prev.filter((d) => d.id !== day.id));
+      if (historyDayId === day.id) setHistoryDayId(null);
+    };
+
+    if (Platform.OS === "web") {
+      if (globalThis.confirm?.(`Delete "${day.label}"?`)) await performDelete();
+      return;
+    }
+
+    Alert.alert("Delete Day?", `Remove "${day.label}" from history?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => { void performDelete(); } },
+    ]);
+  }, [historyDayId]);
+
   const handleUpdateStatus = useCallback(async (orderId: string, nextStatus: OrderStatus) => {
     setUpdatingOrderId(orderId);
 
@@ -693,6 +742,39 @@ export default function KitchenScreen() {
 
     await fetchOrders();
   }, [fetchOrders]);
+
+  const handleCancelOrder = useCallback(async (order: KitchenOrder) => {
+    setUpdatingOrderId(order.id);
+    try {
+      if (order.payment_method === "stripe" && order.stripe_payment_intent_id) {
+        const res = await fetch(REFUND_EDGE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: order.stripe_payment_intent_id }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          Alert.alert(
+            "Refund Failed",
+            json?.error ?? "Could not issue Stripe refund. Please refund manually in the Stripe dashboard.",
+          );
+          setUpdatingOrderId(null);
+          return;
+        }
+      }
+      if ((order.reward_points_cost ?? 0) > 0 && order.user_id) {
+        await supabase.rpc("restore_reward_points", {
+          p_user_id: order.user_id,
+          p_points: order.reward_points_cost,
+          p_label: order.reward_label ?? "reward",
+        });
+      }
+      await handleUpdateStatus(order.id, "cancelled");
+    } catch {
+      Alert.alert("Cancel Failed", "Something went wrong. Please try again.");
+      setUpdatingOrderId(null);
+    }
+  }, [handleUpdateStatus]);
 
   const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -786,11 +868,23 @@ export default function KitchenScreen() {
 
         <View style={styles.daySessionBar}>
           <View style={styles.daySessionCenter}>
-            <GeckosText style={styles.daySessionText}>
-              {showHistory
-                ? (selectedHistoryDay?.label ?? "No previous day found")
-                : (openDay ? openDay.label : "No Day Open")}
-            </GeckosText>
+            <View style={styles.daySessionLabelRow}>
+              <GeckosText style={styles.daySessionText}>
+                {showHistory
+                  ? (selectedHistoryDay?.label ?? "No previous day found")
+                  : (openDay ? openDay.label : "No Day Open")}
+              </GeckosText>
+              {showHistory && selectedHistoryDay ? (
+                <Pressable
+                  onPress={() => handleDeleteDay(selectedHistoryDay)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.deleteDayBtn, pressed && styles.buttonPressed]}
+                >
+                  <Ionicons name="trash-outline" size={15} color={GeckosColors.chiliRed} />
+                  <GeckosText style={styles.deleteDayBtnText}>Delete Day</GeckosText>
+                </Pressable>
+              ) : null}
+            </View>
             {showHistory ? (
               <ScrollView
                 horizontal
@@ -800,19 +894,29 @@ export default function KitchenScreen() {
                 {closedDays.map((day) => {
                   const selected = day.id === selectedHistoryDay?.id;
                   return (
-                    <Pressable
+                    <View
                       key={day.id}
-                      onPress={() => setHistoryDayId(day.id)}
-                      style={({ pressed }) => [
+                      style={[
                         styles.historyDayChip,
                         selected ? styles.historyDayChipActive : null,
-                        pressed ? styles.buttonPressed : null,
                       ]}
                     >
-                      <GeckosText style={[styles.historyDayChipText, selected ? styles.historyDayChipTextActive : null]}>
-                        {day.label}
-                      </GeckosText>
-                    </Pressable>
+                      <Pressable
+                        onPress={() => setHistoryDayId(day.id)}
+                        style={({ pressed }) => pressed ? styles.buttonPressed : null}
+                      >
+                        <GeckosText style={[styles.historyDayChipText, selected ? styles.historyDayChipTextActive : null]}>
+                          {day.label}
+                        </GeckosText>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteDay(day)}
+                        hitSlop={6}
+                        style={({ pressed }) => pressed ? styles.buttonPressed : null}
+                      >
+                        <Ionicons name="close" size={13} color={selected ? GeckosColors.geckoGreen : GeckosColors.mutedText} />
+                      </Pressable>
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -900,6 +1004,7 @@ export default function KitchenScreen() {
                   key={order.id}
                   order={order}
                   onUpdateStatus={handleUpdateStatus}
+                  onCancel={handleCancelOrder}
                   busy={updatingOrderId === order.id}
                 />
               ))
@@ -949,6 +1054,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 8,
+  },
+  daySessionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  deleteDayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: GeckosColors.chiliRed,
+  },
+  deleteDayBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: GeckosColors.chiliRed,
   },
   daySessionText: {
     textAlign: "left",
@@ -1071,6 +1197,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   historyDayChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     borderColor: GeckosColors.border,
     backgroundColor: GeckosColors.background,
@@ -1256,6 +1385,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: GeckosColors.mutedText,
     marginTop: 1,
+  },
+  rewardBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(74, 222, 128, 0.1)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(74, 222, 128, 0.3)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  rewardBadgeText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: GeckosColors.geckoGreen,
+    flex: 1,
   },
   cardFooter: {
     marginTop: 4,

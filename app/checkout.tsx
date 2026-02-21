@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useStripe } from "@stripe/stripe-react-native";
+import { useStripe } from "@/src/hooks/useAppStripe";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -35,14 +35,22 @@ export default function CheckoutScreen() {
     customerName: string;
     customerPhone: string;
     pickupTime: string;
+    rewardId?: string;
+    rewardLabel?: string;
+    rewardPoints?: string;
+    rewardDiscountCents?: string;
   }>();
 
   const [loading, setLoading] = useState(false);
 
   /* ── Fee calculations ─────────────────────────────────── */
+  const rewardDiscountCents = Number(params.rewardDiscountCents ?? 0);
   const subtotalCents = Math.round(subtotal * 100);
-  const processingFeeCents = Math.round(subtotalCents * 0.029) + 30; // 2.9% + $0.30
-  const totalCents = subtotalCents + processingFeeCents;
+  const discountedSubtotalCents = Math.max(0, subtotalCents - rewardDiscountCents);
+  const processingFeeCents = Math.round(discountedSubtotalCents * 0.029) + 30; // 2.9% + $0.30
+  const totalCents = discountedSubtotalCents + processingFeeCents;
+  const discountAmount = rewardDiscountCents / 100;
+  const discountedSubtotal = discountedSubtotalCents / 100;
   const processingFee = processingFeeCents / 100;
   const total = totalCents / 100;
 
@@ -66,15 +74,33 @@ export default function CheckoutScreen() {
         price: i.price,
         quantity: i.quantity,
       })),
-      subtotal: Math.round(subtotal * 100) / 100,
+      subtotal: Math.round(discountedSubtotal * 100) / 100,
+      reward_label: params.rewardLabel || null,
+      reward_discount: rewardDiscountCents > 0 ? discountAmount : null,
+      reward_points_cost: Number(params.rewardPoints ?? 0),
       ...extra,
     };
+  }
+
+  /* ── Deduct reward points after successful order ──────── */
+  async function deductRewardIfSelected() {
+    if (!params.rewardId || !Number(params.rewardPoints ?? 0)) return;
+    await supabase.rpc("redeem_reward", {
+      p_reward_cost: Number(params.rewardPoints),
+      p_reward_label: params.rewardLabel ?? "",
+    });
   }
 
   /* ── Pay at Gecko's ───────────────────────────────────── */
   async function handlePayAtRestaurant() {
     setLoading(true);
     try {
+      const { data: accepting } = await supabase.rpc("is_accepting_orders");
+      if (!accepting) {
+        Alert.alert("Orders Paused", "The restaurant is not currently accepting orders. Please call us at 580-564-9599.");
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.from("orders").insert(
         buildOrderPayload({
           payment_method: "pay_at_restaurant",
@@ -82,6 +108,7 @@ export default function CheckoutScreen() {
         })
       );
       if (error) throw error;
+      await deductRewardIfSelected();
       clearCart();
       router.replace("/(tabs)/order");
     } catch (err: unknown) {
@@ -96,12 +123,19 @@ export default function CheckoutScreen() {
   async function handlePayNow() {
     setLoading(true);
     try {
-      // 1. Get client secret from Edge Function
+      const { data: accepting } = await supabase.rpc("is_accepting_orders");
+      if (!accepting) {
+        Alert.alert("Orders Paused", "The restaurant is not currently accepting orders. Please call us at 580-564-9599.");
+        setLoading(false);
+        return;
+      }
+
+      // 1. Get client secret from Edge Function (uses discounted subtotal)
       const res = await fetch(EDGE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subtotalCents,
+          subtotalCents: discountedSubtotalCents,
           totalCents,
           customerName: params.customerName,
           customerPhone: params.customerPhone,
@@ -140,11 +174,12 @@ export default function CheckoutScreen() {
           payment_method: "stripe",
           payment_status: "paid",
           stripe_payment_intent_id: paymentIntentId,
-          platform_fee_cents: Math.round(subtotalCents * 0.03),
+          platform_fee_cents: Math.round(discountedSubtotalCents * 0.03),
         })
       );
       if (insertError) throw insertError;
 
+      await deductRewardIfSelected();
       clearCart();
       router.replace("/(tabs)/order");
     } catch (err: unknown) {
@@ -186,6 +221,14 @@ export default function CheckoutScreen() {
             <GeckosText style={styles.summaryRowLabel}>Subtotal</GeckosText>
             <GeckosText style={styles.summaryRowValue}>${subtotal.toFixed(2)}</GeckosText>
           </View>
+          {rewardDiscountCents > 0 && (
+            <View style={styles.summaryRow}>
+              <GeckosText style={[styles.summaryRowLabel, styles.discountLabel]}>
+                {params.rewardLabel}
+              </GeckosText>
+              <GeckosText style={styles.discountValue}>-${discountAmount.toFixed(2)}</GeckosText>
+            </View>
+          )}
           <View style={styles.summaryRow}>
             <GeckosText style={styles.summaryRowLabel}>Processing fee</GeckosText>
             <GeckosText style={styles.summaryRowValue}>${processingFee.toFixed(2)}</GeckosText>
@@ -348,6 +391,15 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
     color: GeckosColors.text,
+  },
+  discountLabel: {
+    color: GeckosColors.geckoGreen,
+    fontStyle: "italic",
+  },
+  discountValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: GeckosColors.geckoGreen,
   },
   btnPressed: { opacity: 0.88 },
   btnDisabled: { opacity: 0.5 },
