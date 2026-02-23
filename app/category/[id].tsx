@@ -27,7 +27,7 @@ import { GeckosColors } from "@/src/theme/colors";
 /** Header sizing (same approach as menu.tsx) */
 const HEADER_BAR_HEIGHT = 44; // pinch here (40–52)
 const HEADER_CONTENT_TOP_PAD = 1; // move logo a hair
-const LIST_TOP_GAP = -44; // space under header before title/list
+const LIST_TOP_GAP = 0; // content starts below the transparent header
 
 const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
   beverage: BEVERAGE_IMAGES,
@@ -89,6 +89,14 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
   const image = imageMap?.[item.id];
   const showImageSlot = Boolean(imageMap);
 
+  // For items with a choice count (lunch specials), strip the "Choose X" portion
+  // from the name since the badge already communicates it — keeps the card clean.
+  // Names are stored as "Lunch Special –––––– Choose One" (en-dashes as separator).
+  const displayName =
+    (item.choiceCount ?? 0) > 0
+      ? item.name.split(/\n|[–—-]{2,}/)[0].trim()
+      : item.name;
+
   return (
     <Pressable
       onPress={() =>
@@ -114,12 +122,20 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
 
         <View style={styles.itemContent}>
           <View style={styles.itemTop}>
-            <GeckosText style={styles.itemName}>{item.name}</GeckosText>
+            <GeckosText style={styles.itemName}>{displayName}</GeckosText>
 
             <View style={styles.priceWrap}>
               <PriceBlock item={item} />
             </View>
           </View>
+
+          {(item.choiceCount ?? 0) > 0 && (
+            <View style={styles.choiceBadge}>
+              <GeckosText style={styles.choiceBadgeText}>
+                Choose {item.choiceCount}
+              </GeckosText>
+            </View>
+          )}
 
           {item.description ? (
             <GeckosText variant="muted" style={styles.itemDesc}>
@@ -136,7 +152,7 @@ export default function CategoryScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const categoryId = String(id);
-  const { categories, items: allItems } = useMenu();
+  const { categories, items: allItems, lunchChoices, lunchSauces } = useMenu();
 
   const categoryTitle =
     categories.find((c) => c.id === categoryId)?.title ?? "Category";
@@ -205,20 +221,24 @@ export default function CategoryScreen() {
                 {categoryTitle}
               </GeckosText>
 
-              {categoryId === "lunch-specials" && (
+              {categoryId === "lunch-specials" && lunchChoices.length > 0 && (
                 <View style={styles.lunchInfo}>
                   <GeckosText style={styles.sectionTitle}>Choose from:</GeckosText>
-                  <GeckosText variant="muted">
-                    Cheese Enchilada, Chicken Enchilada, Beef Enchilada, Crispy Taco,
-                    Bean Tostada, Beef Tostada, Guacamole Tostada, Beef Burrito,
-                    Cheese Burrito.
-                  </GeckosText>
-
-                  <GeckosText style={styles.sectionTitle}>Sauce Choices:</GeckosText>
-                  <GeckosText variant="muted">
-                    Chili, Ranchero, Sour Cream Sauce, Yellow Queso, White Queso
-                    (+$0.50)
-                  </GeckosText>
+                  <View style={styles.lunchGrid}>
+                    {lunchChoices.map((c) => (
+                      <GeckosText key={c} variant="muted" style={[styles.lunchItem, styles.lunchGridCell]}>
+                        • {c}
+                      </GeckosText>
+                    ))}
+                  </View>
+                  <GeckosText style={[styles.sectionTitle, { marginTop: 8 }]}>Sauce Options:</GeckosText>
+                  <View style={styles.lunchGrid}>
+                    {lunchSauces.map((s) => (
+                      <GeckosText key={s.name} variant="muted" style={[styles.lunchItem, styles.lunchGridCell]}>
+                        • {s.name}{s.price > 0 ? ` (+$${s.price.toFixed(2)})` : ""}
+                      </GeckosText>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -278,6 +298,17 @@ const styles = StyleSheet.create({
   lunchInfo: {
     marginTop: 10,
     gap: 6,
+  },
+  lunchItem: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  lunchGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  lunchGridCell: {
+    width: "50%",
   },
   sectionTitle: {
     marginTop: 4,
@@ -384,5 +415,22 @@ const styles = StyleSheet.create({
   itemDesc: {
     marginTop: 8,
     lineHeight: 18,
+  },
+  choiceBadge: {
+    alignSelf: "flex-start",
+    marginTop: 5,
+    backgroundColor: "rgba(20, 143, 26, 0.12)",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  choiceBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: GeckosColors.geckoGreen,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
 });

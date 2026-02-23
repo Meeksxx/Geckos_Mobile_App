@@ -423,8 +423,9 @@ export const MENU_ITEMS: MenuItem[] = [
   categoryId: "american-food",
   name: "Chicken Wrap",
   description:
-    "12\" flour tortilla wrapped with grilled or fried chicken, lettuce, tomato & cheddar jack cheese. Served with house-made ranch & French fries.",
-  price: 12.99,
+    "12\" flour tortilla wrapped with chicken, lettuce, tomato & cheddar jack cheese. Served with house-made ranch & French fries.",
+  priceText: "Grilled 12.99 | Crispy 12.99",
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "chicken-strips",
@@ -433,6 +434,7 @@ export const MENU_ITEMS: MenuItem[] = [
   description:
     "Four chicken strips served with French fries.",
   price: 11.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 {
   id: "chicken-wings",
@@ -441,6 +443,7 @@ export const MENU_ITEMS: MenuItem[] = [
   description:
     "Ten chicken wings served with house-made ranch, tossed in buffalo sauce or naked.",
   price: 11.99,
+  addOns: [{ name: "Onion rings (sub fries)", price: 2.00 }],
 },
 // =====================
 // FAJITAS

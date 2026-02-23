@@ -121,6 +121,13 @@ export default function ItemModal() {
     );
   }
 
+  // Strip the "–––– Choose X" suffix from lunch special names since the
+  // "Choose N" section below already communicates that clearly.
+  const displayName =
+    (item.choiceCount ?? 0) > 0
+      ? item.name.split(/\n|[–—-]{2,}/)[0].trim()
+      : item.name;
+
   const imageMap = IMAGE_MAP_BY_CATEGORY[item.categoryId];
   const image = imageMap?.[item.id];
   const fallbackPrice = item.price ?? parsedVariants[0]?.price ?? 0;
@@ -249,7 +256,7 @@ export default function ItemModal() {
           </View>
         )}
 
-        <GeckosText style={styles.itemName}>{item.name}</GeckosText>
+        <GeckosText style={styles.itemName}>{displayName}</GeckosText>
 
         {item.description ? (
           <GeckosText style={styles.description}>{item.description}</GeckosText>
@@ -319,11 +326,24 @@ export default function ItemModal() {
 
         {(item.choiceCount ?? 0) > 0 ? (
           <View style={styles.section}>
-            <GeckosText style={styles.sectionLabel}>
-              Choose {item.choiceCount}
-            </GeckosText>
+            <View style={styles.choiceHeader}>
+              <GeckosText style={[styles.sectionLabel, { marginBottom: 0 }]}>
+                Choose {item.choiceCount}
+              </GeckosText>
+              <View style={[
+                styles.choiceProgress,
+                selectedLunchChoices.length === item.choiceCount && styles.choiceProgressDone,
+              ]}>
+                <GeckosText style={[
+                  styles.choiceProgressText,
+                  selectedLunchChoices.length === item.choiceCount && styles.choiceProgressTextDone,
+                ]}>
+                  {selectedLunchChoices.length} / {item.choiceCount} selected
+                </GeckosText>
+              </View>
+            </View>
             <GeckosText style={styles.sectionHelp}>
-              Select {item.choiceCount} item(s). You can pick the same item more than once.
+              Tap to select. You can pick the same item more than once.
             </GeckosText>
 
             {/* Current selections with per-item sauce pickers */}
@@ -536,6 +556,32 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: GeckosColors.mutedText,
     marginBottom: 10,
+  },
+  choiceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  choiceProgress: {
+    backgroundColor: GeckosColors.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  choiceProgressDone: {
+    backgroundColor: "rgba(20, 143, 26, 0.12)",
+    borderColor: GeckosColors.geckoGreen,
+  },
+  choiceProgressText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: GeckosColors.mutedText,
+  },
+  choiceProgressTextDone: {
+    color: GeckosColors.geckoGreen,
   },
   optionList: {
     gap: 8,

@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import {
   LUNCH_CHOICES as STATIC_LUNCH_CHOICES,
@@ -154,8 +155,23 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Load on mount
   useEffect(() => {
     loadMenu();
+  }, [loadMenu]);
+
+  // Refetch whenever the app comes back to the foreground so menu changes
+  // made in the dashboard are visible immediately without restarting the app.
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (nextState === "active") {
+          loadMenu();
+        }
+      }
+    );
+    return () => subscription.remove();
   }, [loadMenu]);
 
   const value = useMemo<MenuContextValue>(
