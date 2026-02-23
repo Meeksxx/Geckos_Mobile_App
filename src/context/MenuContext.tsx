@@ -50,7 +50,7 @@ function mapRemote(data: {
   const categories: MenuCategory[] = data.categories
     .filter((c) => c.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((c) => ({ id: c.id as MenuCategory["id"], title: c.title }));
+    .map((c) => ({ id: c.id as MenuCategory["id"], title: c.title, imageUrl: c.image_url ?? undefined }));
 
   const items: MenuItem[] = data.items
     .filter((i) => i.is_active)
@@ -63,6 +63,7 @@ function mapRemote(data: {
       price: i.price != null ? Number(i.price) : undefined,
       priceText: i.price_text ?? undefined,
       choiceCount: i.choice_count > 0 ? i.choice_count : undefined,
+      imageUrl: i.image_url ?? undefined,
       addOns:
         Array.isArray(i.menu_item_addons) && i.menu_item_addons.length > 0
           ? i.menu_item_addons
@@ -88,14 +89,14 @@ async function fetchMenu() {
   const [catRes, itemRes, choiceRes, sauceRes] = await Promise.all([
     supabase
       .from("menu_categories")
-      .select("id, title, sort_order, is_active")
+      .select("id, title, sort_order, is_active, image_url")
       .order("sort_order"),
 
     supabase
       .from("menu_items")
       .select(`
         id, category_id, name, description, price, price_text,
-        choice_count, sort_order, is_active,
+        choice_count, sort_order, is_active, image_url,
         menu_item_addons ( id, name, price, sort_order )
       `)
       .order("sort_order"),

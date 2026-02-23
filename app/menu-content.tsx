@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
+import * as ImagePicker from "expo-image-picker";
 import type { Session } from "@supabase/supabase-js";
 
 import { AppContainer } from "@/src/components/AppContainer";
@@ -27,6 +29,7 @@ type MenuCategory = {
   title: string;
   sort_order: number;
   is_active: boolean;
+  image_url: string | null;
 };
 
 type MenuItemRow = {
@@ -39,6 +42,7 @@ type MenuItemRow = {
   choice_count: number;
   sort_order: number;
   is_active: boolean;
+  image_url: string | null;
 };
 
 type AddOnRow = {
@@ -71,6 +75,7 @@ type ItemFormState = {
   choiceCount: string;
   sortOrder: string;
   isActive: boolean;
+  imageUri: string | null;
 };
 
 type CategoryFormState = {
@@ -78,6 +83,7 @@ type CategoryFormState = {
   title: string;
   sortOrder: string;
   isActive: boolean;
+  imageUri: string | null;
 };
 
 type AddOnFormState = {
@@ -108,6 +114,7 @@ const EMPTY_ITEM_FORM: ItemFormState = {
   choiceCount: "0",
   sortOrder: "0",
   isActive: true,
+  imageUri: null,
 };
 
 const EMPTY_CAT_FORM: CategoryFormState = {
@@ -115,6 +122,7 @@ const EMPTY_CAT_FORM: CategoryFormState = {
   title: "",
   sortOrder: "0",
   isActive: true,
+  imageUri: null,
 };
 
 const EMPTY_ADDON_FORM: AddOnFormState = { name: "", price: "0.00", sortOrder: "0" };
@@ -206,9 +214,12 @@ export default function MenuContentScreen() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [items, setItems] = useState<MenuItemRow[]>([]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<ItemFormState>(EMPTY_ITEM_FORM);
 
@@ -226,6 +237,7 @@ export default function MenuContentScreen() {
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catForm, setCatForm] = useState<CategoryFormState>(EMPTY_CAT_FORM);
   const [catSaving, setCatSaving] = useState(false);
+  const [uploadingCatImage, setUploadingCatImage] = useState(false);
 
   /* ── Lunch tab ── */
   const [lunchChoices, setLunchChoices] = useState<LunchChoiceRow[]>([]);
@@ -273,7 +285,7 @@ export default function MenuContentScreen() {
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase
       .from("menu_categories")
-      .select("id, title, sort_order, is_active")
+      .select("id, title, sort_order, is_active, image_url")
       .order("sort_order", { ascending: true });
     const rows = (data ?? []) as MenuCategory[];
     setCategories(rows);
@@ -282,12 +294,18 @@ export default function MenuContentScreen() {
 
   const fetchItems = useCallback(async () => {
     if (!selectedCategoryId) { setItems([]); return; }
-    const { data } = await supabase
+    setItemsError(null);
+    const { data, error } = await supabase
       .from("menu_items")
-      .select("id, category_id, name, description, price, price_text, choice_count, sort_order, is_active")
+      .select("id, category_id, name, description, price, price_text, choice_count, sort_order, is_active, image_url")
       .eq("category_id", selectedCategoryId)
       .order("sort_order", { ascending: true });
-    setItems((data ?? []) as MenuItemRow[]);
+    if (error) {
+      setItemsError(error.message);
+      setItems([]);
+    } else {
+      setItems((data ?? []) as MenuItemRow[]);
+    }
   }, [selectedCategoryId]);
 
   const fetchAddOns = useCallback(async (itemId: string) => {
@@ -348,12 +366,47 @@ export default function MenuContentScreen() {
       choiceCount: String(item.choice_count ?? 0),
       sortOrder: String(item.sort_order ?? 0),
       isActive: item.is_active,
+      imageUri: item.image_url ?? null,
     });
     setEditingId(item.id);
     setShowForm(true);
     // Close add-ons panel when opening edit form
     setAddOnsItemId(null);
     setShowAddOnForm(false);
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploadingImage(true);
+    try {
+      const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+      const fileName = `item-${Date.now()}.${ext}`;
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const { error: uploadError } = await supabase.storage
+        .from("menu-item-images")
+        .upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("menu-item-images")
+        .getPublicUrl(fileName);
+      setForm((p) => ({ ...p, imageUri: urlData.publicUrl }));
+    } catch (err: any) {
+      Alert.alert("Upload failed", err?.message ?? "Unknown error");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveItem = async () => {
@@ -379,6 +432,7 @@ export default function MenuContentScreen() {
       choice_count: parsedChoiceCount,
       sort_order: parsedSortOrder,
       is_active: form.isActive,
+      image_url: form.imageUri ?? null,
     };
     const result = editingId
       ? await supabase.from("menu_items").update(payload).eq("id", editingId)
@@ -395,19 +449,27 @@ export default function MenuContentScreen() {
     await fetchItems();
   };
 
-  const handleDeleteItem = async (item: MenuItemRow) => {
-    Alert.alert("Delete Item", `Delete "${item.name}"? This cannot be undone.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase.from("menu_items").delete().eq("id", item.id);
-          if (error) { Alert.alert("Delete failed", error.message); return; }
-          if (addOnsItemId === item.id) { setAddOnsItemId(null); setAddOns([]); }
-          await fetchItems();
-        },
-      },
-    ]);
+  const handleDeleteItem = (item: MenuItemRow) => {
+    setDeletingId(item.id);
+    // Close other panels so the confirmation row is visible
+    setShowForm(false);
+    setAddOnsItemId(null);
+  };
+
+  const handleConfirmDelete = async (item: MenuItemRow) => {
+    setDeletingId(null);
+    const { data: deleted, error } = await supabase
+      .from("menu_items")
+      .delete()
+      .eq("id", item.id)
+      .select("id");
+    if (error) { Alert.alert("Delete failed", error.message); return; }
+    if (!deleted || deleted.length === 0) {
+      Alert.alert("Delete failed", "Permission denied. Make sure the staff write policy is applied in Supabase.");
+      return;
+    }
+    if (addOnsItemId === item.id) { setAddOnsItemId(null); setAddOns([]); }
+    await fetchItems();
   };
 
   /* ─────────────────── ADD-ON OPERATIONS ─────────────────── */
@@ -482,9 +544,43 @@ export default function MenuContentScreen() {
   };
 
   const openEditCategory = (cat: MenuCategory) => {
-    setCatForm({ id: cat.id, title: cat.title, sortOrder: String(cat.sort_order), isActive: cat.is_active });
+    setCatForm({ id: cat.id, title: cat.title, sortOrder: String(cat.sort_order), isActive: cat.is_active, imageUri: cat.image_url ?? null });
     setEditingCatId(cat.id);
     setShowCatForm(true);
+  };
+
+  const handlePickCategoryImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploadingCatImage(true);
+    try {
+      const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+      const fileName = `category-${Date.now()}.${ext}`;
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const { error: uploadError } = await supabase.storage
+        .from("menu-item-images")
+        .upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("menu-item-images")
+        .getPublicUrl(fileName);
+      setCatForm((p) => ({ ...p, imageUri: urlData.publicUrl }));
+    } catch (err: any) {
+      Alert.alert("Upload failed", err?.message ?? "Unknown error");
+    } finally {
+      setUploadingCatImage(false);
+    }
   };
 
   const handleSaveCategory = async () => {
@@ -493,7 +589,7 @@ export default function MenuContentScreen() {
     const parsedSort = Number(catForm.sortOrder.trim() || "0");
     if (Number.isNaN(parsedSort)) { Alert.alert("Invalid sort order", "Must be a number."); return; }
     setCatSaving(true);
-    const payload = { id: catForm.id.trim(), title: catForm.title.trim(), sort_order: parsedSort, is_active: catForm.isActive };
+    const payload = { id: catForm.id.trim(), title: catForm.title.trim(), sort_order: parsedSort, is_active: catForm.isActive, image_url: catForm.imageUri ?? null };
     const result = editingCatId
       ? await supabase.from("menu_categories").update(payload).eq("id", editingCatId)
       : await supabase.from("menu_categories").insert(payload);
@@ -780,6 +876,35 @@ export default function MenuContentScreen() {
             </View>
           </View>
 
+          {/* Image picker */}
+          <GeckosText style={styles.inputLabel}>Photo</GeckosText>
+          {form.imageUri ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: form.imageUri }} style={styles.imagePreview} resizeMode="cover" />
+              <Pressable
+                onPress={() => setForm((p) => ({ ...p, imageUri: null }))}
+                style={({ pressed }) => [styles.imageRemoveBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="close-circle" size={22} color={GeckosColors.chiliRed} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handlePickImage}
+              disabled={uploadingImage}
+              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingImage && styles.btnDisabled]}
+            >
+              {uploadingImage ? (
+                <ActivityIndicator color={GeckosColors.geckoGreen} />
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                </>
+              )}
+            </Pressable>
+          )}
+
           <View style={styles.formActions}>
             <Pressable onPress={resetItemForm} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
               <GeckosText style={styles.secondaryBtnText}>Cancel</GeckosText>
@@ -898,6 +1023,8 @@ export default function MenuContentScreen() {
         </GeckosText>
         {loading ? (
           <ActivityIndicator color={GeckosColors.geckoGreen} />
+        ) : itemsError ? (
+          <GeckosText style={styles.errorText}>{itemsError}</GeckosText>
         ) : items.length === 0 ? (
           <GeckosText style={styles.emptyText}>No items in this category.</GeckosText>
         ) : (
@@ -919,21 +1046,40 @@ export default function MenuContentScreen() {
                 ) : null}
               </View>
               <View style={styles.itemButtons}>
-                <Pressable
-                  onPress={() => openAddOnsPanel(item)}
-                  style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-                >
-                  <Ionicons name="options-outline" size={16} color={GeckosColors.geckoGreen} />
-                </Pressable>
-                <Pressable onPress={() => openEditItem(item)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
-                  <Ionicons name="create-outline" size={16} color={GeckosColors.geckoGreen} />
-                </Pressable>
-                <Pressable onPress={() => handleToggleItemActive(item)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
-                  <Ionicons name={item.is_active ? "eye-off-outline" : "eye-outline"} size={16} color={GeckosColors.mutedText} />
-                </Pressable>
-                <Pressable onPress={() => handleDeleteItem(item)} style={({ pressed }) => [styles.iconBtnDanger, pressed && styles.pressed]}>
-                  <Ionicons name="trash-outline" size={16} color="#fff" />
-                </Pressable>
+                {deletingId === item.id ? (
+                  <>
+                    <Pressable
+                      onPress={() => handleConfirmDelete(item)}
+                      style={({ pressed }) => [styles.iconBtnDanger, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setDeletingId(null)}
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="close" size={16} color={GeckosColors.mutedText} />
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => openAddOnsPanel(item)}
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="options-outline" size={16} color={GeckosColors.geckoGreen} />
+                    </Pressable>
+                    <Pressable onPress={() => openEditItem(item)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                      <Ionicons name="create-outline" size={16} color={GeckosColors.geckoGreen} />
+                    </Pressable>
+                    <Pressable onPress={() => handleToggleItemActive(item)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                      <Ionicons name={item.is_active ? "eye-off-outline" : "eye-outline"} size={16} color={GeckosColors.mutedText} />
+                    </Pressable>
+                    <Pressable onPress={() => handleDeleteItem(item)} style={({ pressed }) => [styles.iconBtnDanger, pressed && styles.pressed]}>
+                      <Ionicons name="trash-outline" size={16} color="#fff" />
+                    </Pressable>
+                  </>
+                )}
               </View>
             </View>
           ))
@@ -996,6 +1142,35 @@ export default function MenuContentScreen() {
               />
             </View>
           </View>
+
+          {/* Category image picker */}
+          <GeckosText style={styles.inputLabel}>Photo</GeckosText>
+          {catForm.imageUri ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: catForm.imageUri }} style={styles.imagePreview} resizeMode="cover" />
+              <Pressable
+                onPress={() => setCatForm((p) => ({ ...p, imageUri: null }))}
+                style={({ pressed }) => [styles.imageRemoveBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="close-circle" size={22} color={GeckosColors.chiliRed} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handlePickCategoryImage}
+              disabled={uploadingCatImage}
+              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingCatImage && styles.btnDisabled]}
+            >
+              {uploadingCatImage ? (
+                <ActivityIndicator color={GeckosColors.geckoGreen} />
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                </>
+              )}
+            </Pressable>
+          )}
 
           <View style={styles.formActions}>
             <Pressable onPress={resetCatForm} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
@@ -1445,6 +1620,7 @@ const styles = StyleSheet.create({
   },
 
   emptyText: { color: GeckosColors.mutedText, fontWeight: "600", fontSize: 13 },
+  errorText: { color: GeckosColors.chiliRed, fontWeight: "600", fontSize: 13 },
 
   /* Auth screens */
   loginContainer: {
@@ -1467,4 +1643,40 @@ const styles = StyleSheet.create({
 
   pressed: { opacity: 0.8 },
   btnDisabled: { opacity: 0.6 },
+
+  /* Image picker */
+  imagePickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    borderStyle: "dashed",
+    paddingVertical: 14,
+    backgroundColor: "rgba(20, 143, 26, 0.06)",
+  },
+  imagePickText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: GeckosColors.geckoGreen,
+  },
+  imagePreviewWrap: {
+    position: "relative",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  imagePreview: {
+    width: "100%",
+    height: 160,
+    borderRadius: 10,
+  },
+  imageRemoveBtn: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: GeckosColors.surface,
+    borderRadius: 999,
+  },
 });

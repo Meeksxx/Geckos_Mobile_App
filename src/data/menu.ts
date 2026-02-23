@@ -15,6 +15,7 @@ export type MenuCategoryId =
 export type MenuCategory = {
   id: MenuCategoryId;
   title: string;
+  imageUrl?: string;
 };
 
 export type AddOn = {
@@ -31,6 +32,7 @@ export type MenuItem = {
   priceText?: string;    // for small/large, chicken/beef, etc.
   addOns?: AddOn[];      // optional substitutions / extras
   choiceCount?: number;  // lunch specials: how many items to pick
+  imageUrl?: string;     // remote URL from Supabase Storage (overrides local asset)
 };
 
 

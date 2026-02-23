@@ -11,16 +11,25 @@ import { CATEGORY_IMAGES } from "@/src/constants/category-images";
 const HEADER_BAR_HEIGHT = 48; // ✅ pinch amount (56–60 sweet spot)
 
 function CategoryRow({ item }: { item: MenuCategory }) {
+  // Remote URL from dashboard upload takes priority; fall back to bundled asset
+  const remoteUri = item.imageUrl ?? null;
+  const localAsset = (CATEGORY_IMAGES as Record<string, any>)[item.id];
+  const imageSource = remoteUri ? { uri: remoteUri } : localAsset;
+
   return (
     <Pressable
       onPress={() => router.push(`/category/${item.id}` as any)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <Image
-        source={CATEGORY_IMAGES[item.id]}
-        style={styles.imageBlock}
-        resizeMode="cover"
-      />
+      {imageSource ? (
+        <Image
+          source={imageSource}
+          style={styles.imageBlock}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.imageBlock, styles.imagePlaceholder]} />
+      )}
 
       <View style={styles.textBlock}>
         <GeckosText style={styles.rowTitle}>{item.title.toUpperCase()}</GeckosText>
@@ -151,6 +160,9 @@ const styles = StyleSheet.create({
     width: 110,
     height: "100%",
     backgroundColor: "#1B241E",
+  },
+  imagePlaceholder: {
+    backgroundColor: "#1F2920",
   },
 
   textBlock: {

@@ -86,8 +86,11 @@ function PriceBlock({ item }: { item: MenuItem }) {
 
 function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
   const imageMap = IMAGE_MAP_BY_CATEGORY[categoryId];
-  const image = imageMap?.[item.id];
-  const showImageSlot = Boolean(imageMap);
+  // Remote URL from dashboard upload takes priority; fall back to bundled asset
+  const remoteUri = item.imageUrl ?? null;
+  const localAsset = imageMap?.[item.id];
+  const image = remoteUri ? { uri: remoteUri } : localAsset;
+  const showImageSlot = Boolean(imageMap) || Boolean(remoteUri);
 
   // For items with a choice count (lunch specials), strip the "Choose X" portion
   // from the name since the badge already communicates it — keeps the card clean.
@@ -245,7 +248,7 @@ export default function CategoryScreen() {
           }
           contentContainerStyle={[
             styles.list,
-            { paddingTop: headerBgHeight + LIST_TOP_GAP },
+            { paddingTop: HEADER_BAR_HEIGHT + LIST_TOP_GAP },
           ]}
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
