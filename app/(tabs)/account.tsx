@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { router, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -143,6 +143,15 @@ function SignedIn() {
           </Pressable>
         )}
       </View>
+
+      <Pressable
+        onPress={() => router.push("/orders" as any)}
+        style={({ pressed }) => [styles.historyButton, pressed && styles.pressed]}
+      >
+        <Ionicons name="receipt-outline" size={18} color={GeckosColors.geckoGreen} />
+        <GeckosText style={styles.historyButtonText}>Order History</GeckosText>
+        <Ionicons name="chevron-forward" size={16} color={GeckosColors.mutedText} />
+      </Pressable>
 
       <Pressable
         onPress={handleSignOut}
@@ -339,6 +348,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#fff",
+  },
+
+  // Order history
+  historyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    backgroundColor: GeckosColors.surface,
+    marginBottom: 12,
+  },
+  historyButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: GeckosColors.text,
   },
 
   // Sign out

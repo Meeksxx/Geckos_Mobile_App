@@ -748,9 +748,14 @@ export default function KitchenScreen() {
     setUpdatingOrderId(order.id);
     try {
       if (order.payment_method === "stripe" && order.stripe_payment_intent_id) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token ?? "";
         const res = await fetch(REFUND_EDGE_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({ paymentIntentId: order.stripe_payment_intent_id }),
         });
         const json = await res.json();

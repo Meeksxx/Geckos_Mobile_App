@@ -14,11 +14,11 @@ import { useRouter } from "expo-router";
 import { GeckosColors } from "@/src/theme/colors";
 import { useAuth } from "@/src/context/AuthContext";
 
-type Mode = "signIn" | "signUp";
+type Mode = "signIn" | "signUp" | "forgotPassword";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<Mode>("signIn");
   const [email, setEmail] = useState("");
@@ -28,6 +28,26 @@ export default function AuthScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (mode === "forgotPassword") {
+      if (!email.trim()) {
+        Alert.alert("Missing Info", "Please enter your email address.");
+        return;
+      }
+      setSubmitting(true);
+      const errorMsg = await resetPassword(email.trim());
+      setSubmitting(false);
+      if (errorMsg) {
+        Alert.alert("Error", errorMsg);
+        return;
+      }
+      Alert.alert(
+        "Check Your Email",
+        "A password reset link has been sent to " + email.trim() + ". Check your inbox.",
+        [{ text: "OK", onPress: () => setMode("signIn") }]
+      );
+      return;
+    }
+
     if (!email.trim() || !password) {
       Alert.alert("Missing Info", "Please enter your email and password.");
       return;
@@ -71,6 +91,54 @@ export default function AuthScreen() {
   const toggleMode = () => {
     setMode((m) => (m === "signIn" ? "signUp" : "signIn"));
   };
+
+  if (mode === "forgotPassword") {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Pressable onPress={() => setMode("signIn")} style={styles.backButton}>
+            <Text style={styles.backText}>← Back</Text>
+          </Pressable>
+
+          <Text style={styles.title}>Forgot Password</Text>
+          <Text style={styles.subtitle}>
+            Enter your email and we'll send you a reset link.
+          </Text>
+
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={GeckosColors.mutedText}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+          />
+
+          <Pressable
+            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitText}>Send Reset Link</Text>
+            )}
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -141,6 +209,12 @@ export default function AuthScreen() {
           secureTextEntry
         />
 
+        {mode === "signIn" && (
+          <Pressable onPress={() => setMode("forgotPassword")} style={styles.forgotButton}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </Pressable>
+        )}
+
         <Pressable
           style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -210,6 +284,16 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 16,
     color: GeckosColors.text,
+  },
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginTop: 10,
+    paddingVertical: 4,
+  },
+  forgotText: {
+    color: GeckosColors.geckoGreen,
+    fontSize: 14,
+    fontWeight: "600",
   },
   submitButton: {
     backgroundColor: GeckosColors.geckoGreen,

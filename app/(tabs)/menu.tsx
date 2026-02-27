@@ -7,6 +7,9 @@ import { Stack, router } from "expo-router";
 import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CATEGORY_IMAGES } from "@/src/constants/category-images";
+import { supabase } from "@/src/lib/supabase";
+import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 const HEADER_BAR_HEIGHT = 48; // ✅ pinch amount (56–60 sweet spot)
 
@@ -15,17 +18,19 @@ function CategoryRow({ item }: { item: MenuCategory }) {
   const remoteUri = item.imageUrl ?? null;
   const localAsset = (CATEGORY_IMAGES as Record<string, any>)[item.id];
   const imageSource = remoteUri ? { uri: remoteUri } : localAsset;
+  const [imgError, setImgError] = useState(false);
 
   return (
     <Pressable
       onPress={() => router.push(`/category/${item.id}` as any)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      {imageSource ? (
+      {imageSource && !imgError ? (
         <Image
           source={imageSource}
           style={styles.imageBlock}
           resizeMode="cover"
+          onError={() => setImgError(true)}
         />
       ) : (
         <View style={[styles.imageBlock, styles.imagePlaceholder]} />
@@ -46,6 +51,13 @@ export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
   const { categories } = useMenu();
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.rpc("is_accepting_orders").then(({ data }) => {
+      setIsAcceptingOrders(data ?? true);
+    });
+  }, []);
 
   return (
     <>
@@ -91,9 +103,19 @@ export default function MenuScreen() {
           ]}
 
           ListHeaderComponent={
-            <GeckosText variant="title" style={styles.pageTitle}>
-              Menu
-            </GeckosText>
+            <>
+              <GeckosText variant="title" style={styles.pageTitle}>
+                Menu
+              </GeckosText>
+              {isAcceptingOrders === false && (
+                <View style={styles.closedBanner}>
+                  <Ionicons name="time-outline" size={15} color="#D97706" />
+                  <GeckosText style={styles.closedBannerText}>
+                    Kitchen closed — ordering is paused. Call 580-564-9599.
+                  </GeckosText>
+                </View>
+              )}
+            </>
           }
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
@@ -188,5 +210,25 @@ const styles = StyleSheet.create({
 
   separator: {
     height: 12,
+  },
+  closedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(217, 119, 6, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(217, 119, 6, 0.35)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginHorizontal: 0,
+    marginBottom: 12,
+  },
+  closedBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#D97706",
+    lineHeight: 18,
   },
 });

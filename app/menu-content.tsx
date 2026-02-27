@@ -388,6 +388,10 @@ export default function MenuContentScreen() {
     });
     if (result.canceled) return;
     const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      Alert.alert("Image too large", "Please choose an image under 5 MB.");
+      return;
+    }
     setUploadingImage(true);
     try {
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
@@ -562,6 +566,10 @@ export default function MenuContentScreen() {
     });
     if (result.canceled) return;
     const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      Alert.alert("Image too large", "Please choose an image under 5 MB.");
+      return;
+    }
     setUploadingCatImage(true);
     try {
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();

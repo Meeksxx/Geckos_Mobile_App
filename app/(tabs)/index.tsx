@@ -21,7 +21,9 @@ import { GeckosText } from "@/src/components/GeckosText";
 import { GeckosColors } from "@/src/theme/colors";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
+import { useMenu } from "@/src/context/MenuContext";
 import { supabase } from "@/src/lib/supabase";
+import { CATEGORY_IMAGES } from "@/src/constants/category-images";
 
 /* ─────────────────────── CONFIG ─────────────────────── */
 
@@ -46,16 +48,7 @@ const GOOGLE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encod
   `${RESTAURANT_NAME} ${ADDRESS_LINE1} ${ADDRESS_LINE2}`
 )}`;
 
-/* ─────────────────────── CATEGORY DATA ─────────────────────── */
-
-const CATEGORIES = [
-  { id: "local-favorites",   label: "Local Favorites",   image: require("../../assets/images/categories/local-favorites.jpg") },
-  { id: "appetizers",        label: "Appetizers",         image: require("../../assets/images/categories/appetizers.jpg") },
-  { id: "fajitas",           label: "Fajitas",            image: require("../../assets/images/categories/fajitas.jpg") },
-  { id: "american-food",     label: "American",           image: require("../../assets/images/categories/american-food.jpg") },
-  { id: "nachos",            label: "Nachos",             image: require("../../assets/images/categories/nachos.jpg") },
-  { id: "house-specialties", label: "House Specialties",  image: require("../../assets/images/categories/house-specialties.jpg") },
-] as const;
+/* ─────────────────────── no static CATEGORIES — pulled from MenuContext ─────────────────────── */
 
 /* ─────────────────────── HELPERS ─────────────────────── */
 
@@ -108,18 +101,22 @@ function LocationTapCard({ onPress }: { onPress: () => void }) {
 function CategoryCard({
   id,
   label,
-  image,
+  imageSource,
 }: {
   id: string;
   label: string;
-  image: any;
+  imageSource: any;
 }) {
   return (
     <Pressable
       onPress={() => router.push(`/category/${id}` as any)}
       style={({ pressed }) => [styles.categoryCard, pressed && styles.categoryCardPressed]}
     >
-      <Image source={image} style={styles.categoryImage} resizeMode="cover" />
+      {imageSource ? (
+        <Image source={imageSource} style={styles.categoryImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.categoryImage, styles.categoryImagePlaceholder]} />
+      )}
       <View style={styles.categoryOverlay}>
         <GeckosText style={styles.categoryLabel}>{label}</GeckosText>
       </View>
@@ -257,10 +254,12 @@ export default function HomeScreen() {
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
   const { session, isLoggedIn } = useAuth();
   const { itemCount } = useCart();
+  const { categories } = useMenu();
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
 
   const fetchPoints = useCallback(async () => {
     if (!session?.user?.id) { setTotalPoints(null); setDisplayName(null); return; }
@@ -282,6 +281,12 @@ export default function HomeScreen() {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false })
       .then(({ data }) => setAnnouncements(data ?? []));
+  }, []);
+
+  useEffect(() => {
+    supabase.rpc("is_accepting_orders").then(({ data }) => {
+      setIsAcceptingOrders(data ?? true);
+    });
   }, []);
 
   // Cart-aware primary CTA: if items in cart → go to order, else → browse menu
@@ -406,6 +411,16 @@ export default function HomeScreen() {
               </Pressable>
             )}
 
+            {/* Kitchen closed banner */}
+            {isAcceptingOrders === false && (
+              <View style={styles.closedBanner}>
+                <Ionicons name="time-outline" size={16} color="#D97706" />
+                <GeckosText style={styles.closedBannerText}>
+                  Kitchen is currently closed — online ordering is paused. Call us at {PHONE_DISPLAY}.
+                </GeckosText>
+              </View>
+            )}
+
             {/* Category grid */}
             <View style={styles.categoriesHeader}>
               <GeckosText style={styles.sectionTitle}>Explore the Menu</GeckosText>
@@ -419,9 +434,19 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.categoryGrid}>
-              {CATEGORIES.map((cat) => (
-                <CategoryCard key={cat.id} id={cat.id} label={cat.label} image={cat.image} />
-              ))}
+              {categories.map((cat) => {
+                const remoteUri = cat.imageUrl ?? null;
+                const localAsset = (CATEGORY_IMAGES as Record<string, any>)[cat.id];
+                const imageSource = remoteUri ? { uri: remoteUri } : localAsset ?? null;
+                return (
+                  <CategoryCard
+                    key={cat.id}
+                    id={cat.id}
+                    label={cat.title}
+                    imageSource={imageSource}
+                  />
+                );
+              })}
             </View>
 
             {/* What's Happening */}
@@ -786,6 +811,27 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     position: "absolute",
+  },
+  categoryImagePlaceholder: {
+    backgroundColor: "#1F2920",
+  },
+  closedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(217, 119, 6, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(217, 119, 6, 0.35)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  closedBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#D97706",
+    lineHeight: 18,
   },
   categoryOverlay: {
     ...StyleSheet.absoluteFillObject,

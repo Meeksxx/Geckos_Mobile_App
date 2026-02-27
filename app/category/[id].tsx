@@ -91,6 +91,7 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
   const localAsset = imageMap?.[item.id];
   const image = remoteUri ? { uri: remoteUri } : localAsset;
   const showImageSlot = Boolean(imageMap) || Boolean(remoteUri);
+  const [imgError, setImgError] = React.useState(false);
 
   // For items with a choice count (lunch specials), strip the "Choose X" portion
   // from the name since the badge already communicates it — keeps the card clean.
@@ -113,8 +114,13 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
       <View style={styles.itemRow}>
         {showImageSlot ? (
           <View style={styles.mediaWrap}>
-            {image ? (
-              <Image source={image} style={styles.thumb} resizeMode="cover" />
+            {image && !imgError ? (
+              <Image
+                source={image}
+                style={styles.thumb}
+                resizeMode="cover"
+                onError={() => setImgError(true)}
+              />
             ) : (
               <View style={styles.missingThumb}>
                 <GeckosText style={styles.missingThumbText}>No photo</GeckosText>

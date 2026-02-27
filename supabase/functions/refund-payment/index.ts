@@ -1,7 +1,8 @@
 // Supabase Edge Function — refund-payment
 // Issues a full Stripe refund for a paid order.
-// Reverses the transfer to the connected account and returns the platform fee.
+// Requires a valid staff session (Authorization: Bearer <access_token>).
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno&deno-std=0.208.0&no-check";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2?target=deno";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   apiVersion: "2024-06-20",
@@ -20,6 +21,38 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Verify the caller is an authenticated staff member
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
+      );
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
+      );
+    }
+    const { data: staffRow } = await supabase
+      .from("staff_users")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!staffRow) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: staff access required" }),
+        { status: 403, headers: { ...CORS, "Content-Type": "application/json" } }
+      );
+    }
+
     const { paymentIntentId } = await req.json() as { paymentIntentId: string };
 
     if (!paymentIntentId) {
