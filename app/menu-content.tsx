@@ -22,7 +22,7 @@ import { GeckosColors } from "@/src/theme/colors";
 
 /* ─────────────────────── TYPES ─────────────────────── */
 
-type Tab = "items" | "categories" | "lunch";
+type Tab = "items" | "categories" | "lunch" | "specials";
 
 type MenuCategory = {
   id: string;
@@ -103,6 +103,25 @@ type LunchSauceFormState = {
   sortOrder: string;
 };
 
+type SpecialRow = {
+  id: string;
+  label: string;
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+};
+
+type SpecialFormState = {
+  label: string;
+  title: string;
+  subtitle: string;
+  isActive: boolean;
+  imageUri: string | null;
+  sortOrder: string;
+};
+
 /* ─────────────────────── DEFAULT FORM VALUES ─────────────────────── */
 
 const EMPTY_ITEM_FORM: ItemFormState = {
@@ -128,6 +147,7 @@ const EMPTY_CAT_FORM: CategoryFormState = {
 const EMPTY_ADDON_FORM: AddOnFormState = { name: "", price: "0.00", sortOrder: "0" };
 const EMPTY_LC_FORM: LunchChoiceFormState = { name: "", sortOrder: "0" };
 const EMPTY_LS_FORM: LunchSauceFormState = { name: "", price: "0.00", sortOrder: "0" };
+const EMPTY_SPECIAL_FORM: SpecialFormState = { label: "Weekly Special", title: "", subtitle: "", isActive: true, imageUri: null, sortOrder: "0" };
 
 /* ─────────────────────── SUB-COMPONENTS ─────────────────────── */
 
@@ -252,6 +272,15 @@ export default function MenuContentScreen() {
   const [lsForm, setLsForm] = useState<LunchSauceFormState>(EMPTY_LS_FORM);
   const [lsSaving, setLsSaving] = useState(false);
 
+  /* ── Specials tab ── */
+  const [specials, setSpecials] = useState<SpecialRow[]>([]);
+  const [specialsLoading, setSpecialsLoading] = useState(false);
+  const [showSpecialForm, setShowSpecialForm] = useState(false);
+  const [editingSpecialId, setEditingSpecialId] = useState<string | null>(null);
+  const [specialForm, setSpecialForm] = useState<SpecialFormState>(EMPTY_SPECIAL_FORM);
+  const [specialSaving, setSpecialSaving] = useState(false);
+  const [uploadingSpecialImage, setUploadingSpecialImage] = useState(false);
+
   /* ─────────────────── AUTH ─────────────────── */
 
   const checkStaffAccess = useCallback(async (currentSession: Session | null) => {
@@ -328,6 +357,16 @@ export default function MenuContentScreen() {
     setLunchLoading(false);
   }, []);
 
+  const fetchSpecials = useCallback(async () => {
+    setSpecialsLoading(true);
+    const { data } = await supabase
+      .from("app_specials")
+      .select("id, label, title, subtitle, image_url, is_active, sort_order")
+      .order("sort_order", { ascending: true });
+    setSpecials((data ?? []) as SpecialRow[]);
+    setSpecialsLoading(false);
+  }, []);
+
   const refreshAll = useCallback(async () => {
     setLoading(true);
     await fetchCategories();
@@ -338,6 +377,7 @@ export default function MenuContentScreen() {
   useEffect(() => { if (!isStaff) return; refreshAll(); }, [isStaff, refreshAll]);
   useEffect(() => { if (!isStaff) return; fetchItems(); }, [fetchItems, isStaff, selectedCategoryId]);
   useEffect(() => { if (!isStaff || activeTab !== "lunch") return; fetchLunchData(); }, [isStaff, activeTab, fetchLunchData]);
+  useEffect(() => { if (!isStaff || activeTab !== "specials") return; fetchSpecials(); }, [isStaff, activeTab, fetchSpecials]);
 
   const currentCategory = useMemo(
     () => categories.find((c) => c.id === selectedCategoryId) ?? null,
@@ -710,6 +750,81 @@ export default function MenuContentScreen() {
     ]);
   };
 
+  /* ─────────────────── SPECIALS OPERATIONS ─────────────────── */
+
+  const resetSpecialForm = () => { setSpecialForm(EMPTY_SPECIAL_FORM); setEditingSpecialId(null); setShowSpecialForm(false); };
+
+  const openEditSpecial = (s: SpecialRow) => {
+    setSpecialForm({ label: s.label, title: s.title, subtitle: s.subtitle ?? "", isActive: s.is_active, imageUri: s.image_url ?? null, sortOrder: String(s.sort_order) });
+    setEditingSpecialId(s.id);
+    setShowSpecialForm(true);
+  };
+
+  const handlePickSpecialImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") { Alert.alert("Permission needed", "Please allow access to your photo library."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: true, quality: 0.85 });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) { Alert.alert("Image too large", "Please choose an image under 5 MB."); return; }
+    setUploadingSpecialImage(true);
+    try {
+      const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+      const fileName = `special-${Date.now()}.${ext}`;
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const { error: uploadError } = await supabase.storage.from("menu-item-images").upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("menu-item-images").getPublicUrl(fileName);
+      setSpecialForm((p) => ({ ...p, imageUri: urlData.publicUrl }));
+    } catch (err: any) {
+      Alert.alert("Upload failed", err?.message ?? "Unknown error");
+    } finally {
+      setUploadingSpecialImage(false);
+    }
+  };
+
+  const handleSaveSpecial = async () => {
+    if (!specialForm.title.trim()) { Alert.alert("Title required", "Enter a title for the special."); return; }
+    const parsedSort = Number(specialForm.sortOrder.trim() || "0");
+    setSpecialSaving(true);
+    const payload = {
+      label: specialForm.label.trim() || "Weekly Special",
+      title: specialForm.title.trim(),
+      subtitle: specialForm.subtitle.trim() || null,
+      image_url: specialForm.imageUri ?? null,
+      is_active: specialForm.isActive,
+      sort_order: parsedSort,
+    };
+    const result = editingSpecialId
+      ? await supabase.from("app_specials").update(payload).eq("id", editingSpecialId)
+      : await supabase.from("app_specials").insert(payload);
+    setSpecialSaving(false);
+    if (result.error) { Alert.alert("Save failed", result.error.message); return; }
+    resetSpecialForm();
+    await fetchSpecials();
+  };
+
+  const handleDeleteSpecial = (s: SpecialRow) => {
+    Alert.alert("Delete Special", `Delete "${s.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase.from("app_specials").delete().eq("id", s.id);
+          if (error) { Alert.alert("Delete failed", error.message); return; }
+          await fetchSpecials();
+        },
+      },
+    ]);
+  };
+
+  const handleToggleSpecialActive = async (s: SpecialRow) => {
+    const { error } = await supabase.from("app_specials").update({ is_active: !s.is_active }).eq("id", s.id);
+    if (error) { Alert.alert("Update failed", error.message); return; }
+    await fetchSpecials();
+  };
+
   /* ─────────────────── SIGN OUT ─────────────────── */
 
   const handleSignOut = useCallback(async () => {
@@ -721,6 +836,7 @@ export default function MenuContentScreen() {
     setAddOns([]);
     setLunchChoices([]);
     setLunchSauces([]);
+    setSpecials([]);
   }, []);
 
   /* ─────────────────── AUTH GATES ─────────────────── */
@@ -1393,6 +1509,147 @@ export default function MenuContentScreen() {
     </>
   );
 
+  const renderSpecialsTab = () => (
+    <>
+      <View style={styles.rowActions}>
+        <Pressable
+          onPress={() => { setSpecialForm(EMPTY_SPECIAL_FORM); setEditingSpecialId(null); setShowSpecialForm(true); }}
+          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+        >
+          <Ionicons name="add" size={16} color="#fff" />
+          <GeckosText style={styles.primaryBtnText}>Add Special</GeckosText>
+        </Pressable>
+      </View>
+
+      {showSpecialForm && (
+        <View style={styles.card}>
+          <GeckosText style={styles.sectionTitle}>{editingSpecialId ? "Edit Special" : "New Special"}</GeckosText>
+
+          <GeckosText style={styles.inputLabel}>Label</GeckosText>
+          <TextInput
+            style={styles.input}
+            value={specialForm.label}
+            onChangeText={(v) => setSpecialForm((p) => ({ ...p, label: v }))}
+            placeholder="Weekly Special"
+            placeholderTextColor={GeckosColors.mutedText}
+          />
+
+          <GeckosText style={styles.inputLabel}>Title *</GeckosText>
+          <TextInput
+            style={styles.input}
+            value={specialForm.title}
+            onChangeText={(v) => setSpecialForm((p) => ({ ...p, title: v }))}
+            placeholder="Half-Price Margaritas"
+            placeholderTextColor={GeckosColors.mutedText}
+          />
+
+          <GeckosText style={styles.inputLabel}>Subtitle</GeckosText>
+          <TextInput
+            style={styles.input}
+            value={specialForm.subtitle}
+            onChangeText={(v) => setSpecialForm((p) => ({ ...p, subtitle: v }))}
+            placeholder="Every Tuesday · All Year Long"
+            placeholderTextColor={GeckosColors.mutedText}
+          />
+
+          <View style={styles.halfRow}>
+            <View style={styles.halfCol}>
+              <GeckosText style={styles.inputLabel}>Sort Order</GeckosText>
+              <TextInput
+                style={styles.input}
+                value={specialForm.sortOrder}
+                onChangeText={(v) => setSpecialForm((p) => ({ ...p, sortOrder: v }))}
+                placeholder="0"
+                placeholderTextColor={GeckosColors.mutedText}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={[styles.halfCol, styles.switchCol]}>
+              <GeckosText style={styles.inputLabel}>Active</GeckosText>
+              <Switch
+                value={specialForm.isActive}
+                onValueChange={(v) => setSpecialForm((p) => ({ ...p, isActive: v }))}
+                trackColor={{ true: GeckosColors.geckoGreen, false: GeckosColors.border }}
+              />
+            </View>
+          </View>
+
+          <GeckosText style={styles.inputLabel}>Photo</GeckosText>
+          {specialForm.imageUri ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: specialForm.imageUri }} style={styles.imagePreview} resizeMode="cover" />
+              <Pressable
+                onPress={() => setSpecialForm((p) => ({ ...p, imageUri: null }))}
+                style={({ pressed }) => [styles.imageRemoveBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="close-circle" size={22} color={GeckosColors.chiliRed} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handlePickSpecialImage}
+              disabled={uploadingSpecialImage}
+              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingSpecialImage && styles.btnDisabled]}
+            >
+              {uploadingSpecialImage ? (
+                <ActivityIndicator color={GeckosColors.geckoGreen} />
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                </>
+              )}
+            </Pressable>
+          )}
+
+          <View style={styles.formActions}>
+            <Pressable onPress={resetSpecialForm} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
+              <GeckosText style={styles.secondaryBtnText}>Cancel</GeckosText>
+            </Pressable>
+            <Pressable
+              onPress={handleSaveSpecial}
+              disabled={specialSaving}
+              style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed, specialSaving && styles.btnDisabled]}
+            >
+              {specialSaving ? <ActivityIndicator color="#fff" /> : <GeckosText style={styles.primaryBtnText}>Save Special</GeckosText>}
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.card}>
+        <GeckosText style={styles.sectionTitle}>All Specials ({specials.length})</GeckosText>
+        {specialsLoading ? (
+          <ActivityIndicator color={GeckosColors.geckoGreen} />
+        ) : specials.length === 0 ? (
+          <GeckosText style={styles.emptyText}>No specials found. Tap "Add Special" to create one.</GeckosText>
+        ) : (
+          specials.map((s) => (
+            <View key={s.id} style={styles.itemRow}>
+              <View style={styles.itemMain}>
+                <GeckosText style={styles.itemName}>{s.title}</GeckosText>
+                <GeckosText style={styles.itemMeta}>
+                  {s.label}{s.subtitle ? ` · ${s.subtitle}` : ""} · {s.is_active ? "active" : "hidden"}
+                </GeckosText>
+              </View>
+              <View style={styles.itemButtons}>
+                <Pressable onPress={() => openEditSpecial(s)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                  <Ionicons name="create-outline" size={16} color={GeckosColors.geckoGreen} />
+                </Pressable>
+                <Pressable onPress={() => handleToggleSpecialActive(s)} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+                  <Ionicons name={s.is_active ? "eye-off-outline" : "eye-outline"} size={16} color={GeckosColors.mutedText} />
+                </Pressable>
+                <Pressable onPress={() => handleDeleteSpecial(s)} style={({ pressed }) => [styles.iconBtnDanger, pressed && styles.pressed]}>
+                  <Ionicons name="trash-outline" size={16} color="#fff" />
+                </Pressable>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </>
+  );
+
   /* ─────────────────── MAIN RENDER ─────────────────── */
 
   return (
@@ -1413,8 +1670,8 @@ export default function MenuContentScreen() {
 
           {/* Tab bar */}
           <View style={styles.tabBar}>
-            {(["items", "categories", "lunch"] as Tab[]).map((tab) => {
-              const labels: Record<Tab, string> = { items: "Items", categories: "Categories", lunch: "Lunch Options" };
+            {(["items", "categories", "lunch", "specials"] as Tab[]).map((tab) => {
+              const labels: Record<Tab, string> = { items: "Items", categories: "Categories", lunch: "Lunch Options", specials: "Specials" };
               const active = activeTab === tab;
               return (
                 <Pressable
@@ -1434,6 +1691,7 @@ export default function MenuContentScreen() {
           {activeTab === "items" && renderItemsTab()}
           {activeTab === "categories" && renderCategoriesTab()}
           {activeTab === "lunch" && renderLunchTab()}
+          {activeTab === "specials" && renderSpecialsTab()}
 
         </ScrollView>
       </AppContainer>

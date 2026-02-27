@@ -249,6 +249,14 @@ type Announcement = {
   image_url: string | null;
 };
 
+type AppSpecial = {
+  id: string;
+  label: string;
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+};
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
@@ -260,6 +268,7 @@ export default function HomeScreen() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
+  const [activeSpecial, setActiveSpecial] = useState<AppSpecial | null>(null);
 
   const fetchPoints = useCallback(async () => {
     if (!session?.user?.id) { setTotalPoints(null); setDisplayName(null); return; }
@@ -287,6 +296,17 @@ export default function HomeScreen() {
     supabase.rpc("is_accepting_orders").then(({ data }) => {
       setIsAcceptingOrders(data ?? true);
     });
+  }, []);
+
+  useEffect(() => {
+    supabase
+      .from("app_specials")
+      .select("id, label, title, subtitle, image_url")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setActiveSpecial(data ?? null));
   }, []);
 
   // Cart-aware primary CTA: if items in cart → go to order, else → browse menu
@@ -476,26 +496,26 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Tuesday Special banner */}
-            <View style={styles.specialBanner}>
-              <Image
-                source={require("../../assets/more/margarita.jpg")}
-                style={styles.specialBannerBg}
-                resizeMode="cover"
-              />
-              <View style={styles.specialBannerOverlay}>
-                <View style={styles.specialBannerRow}>
-                  <Ionicons name="wine" size={20} color={GeckosColors.geckoGreen} />
-                  <GeckosText style={styles.specialBannerLabel}>Weekly Special</GeckosText>
+            {/* Weekly Special banner — editable via staff dashboard */}
+            {activeSpecial !== null && (
+              <View style={styles.specialBanner}>
+                <Image
+                  source={activeSpecial.image_url ? { uri: activeSpecial.image_url } : require("../../assets/more/margarita.jpg")}
+                  style={styles.specialBannerBg}
+                  resizeMode="cover"
+                />
+                <View style={styles.specialBannerOverlay}>
+                  <View style={styles.specialBannerRow}>
+                    <Ionicons name="wine" size={20} color={GeckosColors.geckoGreen} />
+                    <GeckosText style={styles.specialBannerLabel}>{activeSpecial.label}</GeckosText>
+                  </View>
+                  <GeckosText style={styles.specialBannerTitle}>{activeSpecial.title}</GeckosText>
+                  {activeSpecial.subtitle ? (
+                    <GeckosText style={styles.specialBannerSub}>{activeSpecial.subtitle}</GeckosText>
+                  ) : null}
                 </View>
-                <GeckosText style={styles.specialBannerTitle}>
-                  Half-Price Margaritas
-                </GeckosText>
-                <GeckosText style={styles.specialBannerSub}>
-                  Every Tuesday · All Year Long
-                </GeckosText>
               </View>
-            </View>
+            )}
 
           </View>
         </ScrollView>
