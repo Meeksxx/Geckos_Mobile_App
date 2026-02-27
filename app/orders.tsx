@@ -151,6 +151,7 @@ export default function OrderHistoryScreen() {
         options={{
           headerShown: true,
           title: "Order History",
+          headerBackTitle: "Back",
           headerStyle: { backgroundColor: GeckosColors.background },
           headerTintColor: GeckosColors.text,
           headerTitleStyle: { fontWeight: "900" },
