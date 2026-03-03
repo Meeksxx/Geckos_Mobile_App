@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "stretch",
-    height: ROW_HEIGHT,
+    minHeight: ROW_HEIGHT,
     shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -347,14 +347,16 @@ const styles = StyleSheet.create({
   mediaWrap: {
     width: THUMB_WIDTH,
     backgroundColor: "#1B241E",
+    alignSelf: "stretch",
   },
   thumb: {
     width: THUMB_WIDTH,
-    height: ROW_HEIGHT,
+    flex: 1,
   },
   missingThumb: {
     width: THUMB_WIDTH,
-    height: ROW_HEIGHT,
+    flex: 1,
+    minHeight: ROW_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#1F1F1F",

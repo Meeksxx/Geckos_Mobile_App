@@ -17,6 +17,7 @@ import { router } from "expo-router";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
+import { StaffNav } from "@/src/components/StaffNav";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
@@ -854,9 +855,6 @@ export default function KitchenScreen() {
             </GeckosText>
           </View>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => router.push("/menu-content" as any)} style={({ pressed }) => [styles.signOutButton, pressed ? styles.buttonPressed : null]}>
-              <GeckosText style={styles.signOutButtonText}>Menu</GeckosText>
-            </Pressable>
             <Pressable onPress={handleSignOut} style={({ pressed }) => [styles.signOutButton, pressed ? styles.buttonPressed : null]}>
               <GeckosText style={styles.signOutButtonText}>Sign Out</GeckosText>
             </Pressable>
@@ -874,6 +872,8 @@ export default function KitchenScreen() {
             </Pressable>
           </View>
         </View>
+
+        <StaffNav active="kitchen" />
 
         <View style={styles.daySessionBar}>
           <View style={styles.daySessionCenter}>

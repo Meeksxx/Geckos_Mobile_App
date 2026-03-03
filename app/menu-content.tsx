@@ -17,6 +17,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
+import { StaffNav } from "@/src/components/StaffNav";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
@@ -1667,6 +1668,8 @@ export default function MenuContentScreen() {
               <GeckosText style={styles.secondaryBtnText}>Sign Out</GeckosText>
             </Pressable>
           </View>
+
+          <StaffNav active="menu" />
 
           {/* Tab bar */}
           <View style={styles.tabBar}>

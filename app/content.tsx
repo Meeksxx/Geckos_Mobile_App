@@ -16,10 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import type { Session } from "@supabase/supabase-js";
-import { router } from "expo-router";
 
 import { AppContainer } from "@/src/components/AppContainer";
 import { GeckosText } from "@/src/components/GeckosText";
+import { StaffNav } from "@/src/components/StaffNav";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
@@ -576,12 +576,6 @@ export default function ContentScreen() {
             </View>
             <View style={styles.headerActions}>
               <Pressable
-                onPress={() => router.push("/menu-content" as any)}
-                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
-              >
-                <GeckosText style={styles.signOutButtonText}>Menu</GeckosText>
-              </Pressable>
-              <Pressable
                 onPress={handleSignOut}
                 style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
               >
@@ -589,6 +583,8 @@ export default function ContentScreen() {
               </Pressable>
             </View>
           </View>
+
+          <StaffNav active="content" />
 
           {/* New post button */}
           {!showForm && !editingItem && (
