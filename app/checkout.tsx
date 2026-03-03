@@ -22,7 +22,7 @@ import { supabase } from "@/src/lib/supabase";
 /* ─── Config ─────────────────────────────────────────────── */
 
 const EDGE_URL =
-  `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/create-payment-intent`;
+  `${(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "")}/functions/v1/create-payment-intent`;
 
 /* ─── Screen ─────────────────────────────────────────────── */
 
@@ -151,19 +151,13 @@ export default function CheckoutScreen() {
       };
 
       // 2. Initialize the Stripe payment sheet.
-      // Apple/Google Pay require native entitlements not present in Expo Go —
-      // only enable them in production builds so the card form shows in dev.
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "Gecko's at Lake Texoma",
         paymentIntentClientSecret: clientSecret,
         defaultBillingDetails: { name: params.customerName },
-        ...(!__DEV__ && {
-          applePay: { merchantCountryCode: "US" },
-          googlePay: { merchantCountryCode: "US", testEnv: false },
-        }),
         style: "alwaysDark",
       });
-      if (initError) throw new Error(initError.message);
+      if (initError) throw new Error(`Sheet init failed: ${initError.message}`);
 
       // 3. Present sheet to the user
       const { error: payError } = await presentPaymentSheet();
