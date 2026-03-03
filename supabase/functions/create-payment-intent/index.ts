@@ -9,6 +9,7 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
 
 const CONNECTED_ACCOUNT_ID = Deno.env.get("STRIPE_CONNECT_ACCOUNT_ID")!;
 const PLATFORM_FEE = 0.03; // 3%
+const IS_TEST_MODE = (Deno.env.get("STRIPE_SECRET_KEY") ?? "").startsWith("sk_test_");
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -39,13 +40,19 @@ Deno.serve(async (req: Request) => {
 
     const applicationFeeAmount = Math.round(subtotalCents * PLATFORM_FEE);
 
+    // In test mode skip Connect transfer — the connected account doesn't need
+    // transfers enabled just to verify the payment flow end-to-end.
+    const connectParams = IS_TEST_MODE ? {} : {
+      application_fee_amount: applicationFeeAmount,
+      on_behalf_of: CONNECTED_ACCOUNT_ID,
+      transfer_data: { destination: CONNECTED_ACCOUNT_ID },
+    };
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: applicationFeeAmount,
-      on_behalf_of: CONNECTED_ACCOUNT_ID,
-      transfer_data: { destination: CONNECTED_ACCOUNT_ID },
+      ...connectParams,
       metadata: {
         customer_name: customerName,
         customer_phone: customerPhone,

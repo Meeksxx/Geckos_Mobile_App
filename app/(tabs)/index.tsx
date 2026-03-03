@@ -269,6 +269,7 @@ export default function HomeScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
   const [activeSpecial, setActiveSpecial] = useState<AppSpecial | null>(null);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const fetchPoints = useCallback(async () => {
     if (!session?.user?.id) { setTotalPoints(null); setDisplayName(null); return; }
@@ -454,7 +455,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.categoryGrid}>
-              {categories.map((cat) => {
+              {(showAllCategories ? categories : categories.slice(0, 6)).map((cat) => {
                 const remoteUri = cat.imageUrl ?? null;
                 const localAsset = (CATEGORY_IMAGES as Record<string, any>)[cat.id];
                 const imageSource = remoteUri ? { uri: remoteUri } : localAsset ?? null;
@@ -468,6 +469,24 @@ export default function HomeScreen() {
                 );
               })}
             </View>
+
+            {categories.length > 6 && (
+              <Pressable
+                onPress={() => setShowAllCategories((v) => !v)}
+                style={({ pressed }) => [styles.showAllBtn, pressed && { opacity: 0.7 }]}
+              >
+                <GeckosText style={styles.showAllBtnText}>
+                  {showAllCategories
+                    ? "Show less"
+                    : `Show all ${categories.length} categories`}
+                </GeckosText>
+                <Ionicons
+                  name={showAllCategories ? "chevron-up" : "chevron-down"}
+                  size={14}
+                  color={GeckosColors.geckoGreen}
+                />
+              </Pressable>
+            )}
 
             {/* What's Happening */}
             {announcements.length > 0 && (
@@ -827,6 +846,23 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   categoryCardPressed: { opacity: 0.88 },
+  showAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    backgroundColor: GeckosColors.surface,
+    marginTop: -4,
+  },
+  showAllBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: GeckosColors.geckoGreen,
+  },
   categoryImage: {
     width: "100%",
     height: "100%",

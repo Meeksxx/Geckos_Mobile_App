@@ -150,13 +150,17 @@ export default function CheckoutScreen() {
         paymentIntentId: string;
       };
 
-      // 2. Initialize the Stripe payment sheet
+      // 2. Initialize the Stripe payment sheet.
+      // Apple/Google Pay require native entitlements not present in Expo Go —
+      // only enable them in production builds so the card form shows in dev.
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "Gecko's at Lake Texoma",
         paymentIntentClientSecret: clientSecret,
         defaultBillingDetails: { name: params.customerName },
-        applePay: { merchantCountryCode: "US" },
-        googlePay: { merchantCountryCode: "US", testEnv: __DEV__ },
+        ...(!__DEV__ && {
+          applePay: { merchantCountryCode: "US" },
+          googlePay: { merchantCountryCode: "US", testEnv: false },
+        }),
         style: "alwaysDark",
       });
       if (initError) throw new Error(initError.message);

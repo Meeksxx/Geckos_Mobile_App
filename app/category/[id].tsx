@@ -70,6 +70,20 @@ function PriceBlock({ item }: { item: MenuItem }) {
       return <GeckosText style={styles.priceLine}>{item.priceText}</GeckosText>;
     }
 
+    // 3+ variants: condense to "From $X.XX" so the name column isn't squeezed
+    if (lines.length > 2) {
+      const prices = lines.map((l) => {
+        const m = l.match(/([\d]+\.[\d]{2})\s*$/);
+        return m ? parseFloat(m[1]) : Infinity;
+      });
+      const min = Math.min(...prices);
+      return (
+        <GeckosText style={styles.priceLine}>
+          {isFinite(min) ? `From $${min.toFixed(2)}` : item.priceText}
+        </GeckosText>
+      );
+    }
+
     return (
       <View style={styles.priceStack}>
         {lines.map((line) => (
