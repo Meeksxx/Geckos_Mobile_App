@@ -38,21 +38,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // 3% platform fee on the discounted subtotal (before processing fee)
     const applicationFeeAmount = Math.round(subtotalCents * PLATFORM_FEE);
-
-    // In test mode skip Connect transfer — the connected account doesn't need
-    // transfers enabled just to verify the payment flow end-to-end.
-    const connectParams = IS_TEST_MODE ? {} : {
-      application_fee_amount: applicationFeeAmount,
-      on_behalf_of: CONNECTED_ACCOUNT_ID,
-      transfer_data: { destination: CONNECTED_ACCOUNT_ID },
-    };
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
-      ...connectParams,
+      application_fee_amount: applicationFeeAmount,
+      transfer_data: { destination: CONNECTED_ACCOUNT_ID },
       metadata: {
         customer_name: customerName,
         customer_phone: customerPhone,
