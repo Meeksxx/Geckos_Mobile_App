@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 import type { AddOn } from "@/src/data/menu";
 
 export type CartItem = {
@@ -22,12 +22,16 @@ type CartContextType = {
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
+  toastName: string | null;
+  hideToast: () => void;
 };
 
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [toastName, setToastName] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {
@@ -42,9 +46,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         return [...prev, { ...newItem, quantity: newItem.quantity ?? 1 }];
       });
+      // Show cart toast
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      setToastName(newItem.name);
+      toastTimer.current = setTimeout(() => setToastName(null), 3500);
     },
     []
   );
+
+  const hideToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastName(null);
+  }, []);
 
   const removeItem = useCallback((lineKey: string) => {
     setItems((prev) => prev.filter((i) => i.lineKey !== lineKey));
@@ -76,8 +89,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal }),
-    [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal]
+    () => ({ items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal, toastName, hideToast }),
+    [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal, toastName, hideToast]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
