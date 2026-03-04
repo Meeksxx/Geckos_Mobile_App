@@ -131,9 +131,14 @@ export default function CheckoutScreen() {
       }
 
       // 1. Get client secret from Edge Function (uses discounted subtotal)
+      const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
       const res = await fetch(EDGE_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": ANON_KEY,
+          "Authorization": `Bearer ${ANON_KEY}`,
+        },
         body: JSON.stringify({
           subtotalCents: discountedSubtotalCents,
           totalCents,
@@ -141,9 +146,9 @@ export default function CheckoutScreen() {
           customerPhone: params.customerPhone,
         }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.clientSecret) {
-        throw new Error(json.error ?? "Could not initialize payment.");
+        throw new Error(json.error ?? json.msg ?? `HTTP ${res.status}: Could not reach payment server`);
       }
       const { clientSecret, paymentIntentId } = json as {
         clientSecret: string;
