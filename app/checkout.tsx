@@ -48,10 +48,12 @@ export default function CheckoutScreen() {
   const subtotalCents = Math.round(subtotal * 100);
   const discountedSubtotalCents = Math.max(0, subtotalCents - rewardDiscountCents);
   const processingFeeCents = Math.round(discountedSubtotalCents * 0.029) + 30; // 2.9% + $0.30
-  const totalCents = discountedSubtotalCents + processingFeeCents;
+  const serviceFeeCents = Math.round(discountedSubtotalCents * 0.015);         // 1.5% customer share
+  const totalCents = discountedSubtotalCents + processingFeeCents + serviceFeeCents;
   const discountAmount = rewardDiscountCents / 100;
   const discountedSubtotal = discountedSubtotalCents / 100;
   const processingFee = processingFeeCents / 100;
+  const serviceFee = serviceFeeCents / 100;
   const total = totalCents / 100;
 
   /* ── Shared order payload ─────────────────────────────── */
@@ -235,6 +237,10 @@ export default function CheckoutScreen() {
           <View style={styles.summaryRow}>
             <GeckosText style={styles.summaryRowLabel}>Processing fee</GeckosText>
             <GeckosText style={styles.summaryRowValue}>${processingFee.toFixed(2)}</GeckosText>
+          </View>
+          <View style={styles.summaryRow}>
+            <GeckosText style={styles.summaryRowLabel}>Service fee</GeckosText>
+            <GeckosText style={styles.summaryRowValue}>${serviceFee.toFixed(2)}</GeckosText>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryRow}>
