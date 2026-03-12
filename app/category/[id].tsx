@@ -5,6 +5,7 @@ import { FlatList, Image, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppContainer } from "@/src/components/AppContainer";
+import { CartToast } from "@/src/components/CartToast";
 import { GeckosText } from "@/src/components/GeckosText";
 
 import { AMERICAN_FOOD_IMAGES } from "@/src/constants/American-Food-image";
@@ -227,6 +228,7 @@ export default function CategoryScreen() {
         }}
       />
 
+      <CartToast />
       <AppContainer noPadding noBottomSafeArea>
         <FlatList
           data={items}
