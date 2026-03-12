@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from "react-native";
@@ -668,33 +669,15 @@ export default function KitchenScreen() {
     );
   }, [fetchDays, openDay, openDayActiveCount]);
 
-  // ── Pause / Resume (manual override of auto-schedule) ───────────────────────
-  const handlePauseOrders = useCallback(async () => {
-    if (!openDay) return;
-    setDayActionBusy(true);
-    const { error } = await supabase
-      .from("kitchen_days")
-      .update({ closed_at: new Date().toISOString() })
-      .eq("id", openDay.id);
-    if (!error) {
-      await supabase.from("restaurant_settings").update({ orders_paused: true }).eq("id", true);
-      setOrdersPaused(true);
-    } else {
-      Alert.alert("Pause Failed", error.message);
-    }
-    setDayActionBusy(false);
-    await fetchDays();
-  }, [openDay, fetchDays]);
+  // ── Manual orders toggle ─────────────────────────────────────────────────────
+  const acceptingOrders = !!openDay && !ordersPaused;
 
-  const handleResumeOrders = useCallback(async () => {
+  const handleToggleOrders = useCallback(async (turnOn: boolean) => {
     setDayActionBusy(true);
-    const { error } = await supabase
-      .from("restaurant_settings")
-      .update({ orders_paused: false })
-      .eq("id", true);
-    if (!error) {
+    if (turnOn) {
+      // Turn on: clear pause flag and open a new day
+      await supabase.from("restaurant_settings").update({ orders_paused: false }).eq("id", true);
       setOrdersPaused(false);
-      // Immediately open a new day so orders resume right away.
       const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
       const { data: dayData, error: dayError } = await supabase
         .from("kitchen_days")
@@ -702,12 +685,20 @@ export default function KitchenScreen() {
         .select("id, label, opened_at, closed_at")
         .single();
       if (!dayError && dayData) setDays((prev) => [dayData as KitchenDay, ...prev]);
-      await fetchDays();
     } else {
-      Alert.alert("Resume Failed", error.message);
+      // Turn off: close the open day and set pause flag
+      if (openDay) {
+        await supabase
+          .from("kitchen_days")
+          .update({ closed_at: new Date().toISOString() })
+          .eq("id", openDay.id);
+      }
+      await supabase.from("restaurant_settings").update({ orders_paused: true }).eq("id", true);
+      setOrdersPaused(true);
     }
+    await fetchDays();
     setDayActionBusy(false);
-  }, [fetchDays]);
+  }, [openDay, fetchDays]);
 
   // ── Auto-schedule: keep scheduleRef current on every render ─────────────────
   scheduleRef.current.openDay = openDay;
@@ -1014,35 +1005,30 @@ export default function KitchenScreen() {
               </ScrollView>
             ) : (
               <View style={styles.daySessionActions}>
-                {openDay ? (
-                  <Pressable
-                    onPress={handlePauseOrders}
-                    disabled={dayActionBusy}
-                    style={({ pressed }) => [
-                      styles.pauseOrdersButton,
-                      pressed ? styles.buttonPressed : null,
-                      dayActionBusy ? styles.buttonDisabled : null,
-                    ]}
-                  >
-                    <GeckosText style={styles.pauseOrdersButtonText}>Pause Orders</GeckosText>
-                  </Pressable>
-                ) : ordersPaused ? (
-                  <Pressable
-                    onPress={handleResumeOrders}
-                    disabled={dayActionBusy}
-                    style={({ pressed }) => [
-                      styles.dayActionButton,
-                      pressed ? styles.buttonPressed : null,
-                      dayActionBusy ? styles.buttonDisabled : null,
-                    ]}
-                  >
-                    <GeckosText style={styles.dayActionButtonText}>Resume Orders</GeckosText>
-                  </Pressable>
-                ) : (
-                  <GeckosText style={styles.scheduleStatusText}>
-                    {isWithinBusinessHours() ? "Opening automatically…" : "Closed · Opens at 11 AM"}
-                  </GeckosText>
-                )}
+                <View style={styles.ordersToggleRow}>
+                  <View>
+                    <GeckosText style={styles.ordersToggleLabel}>
+                      {acceptingOrders ? "Accepting Orders" : "Not Accepting Orders"}
+                    </GeckosText>
+                    <GeckosText style={styles.ordersToggleSub}>
+                      {acceptingOrders
+                        ? "Tap to stop taking orders"
+                        : isWithinBusinessHours()
+                          ? "Auto-opens during business hours"
+                          : "Closed · Opens at 11 AM"}
+                    </GeckosText>
+                  </View>
+                  {dayActionBusy ? (
+                    <ActivityIndicator color={GeckosColors.geckoGreen} />
+                  ) : (
+                    <Switch
+                      value={acceptingOrders}
+                      onValueChange={handleToggleOrders}
+                      trackColor={{ false: "#3f3f46", true: GeckosColors.geckoGreen }}
+                      thumbColor="#fff"
+                    />
+                  )}
+                </View>
               </View>
             )}
           </View>
@@ -1205,6 +1191,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     color: GeckosColors.text,
+  },
+  ordersToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  ordersToggleLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: GeckosColors.text,
+  },
+  ordersToggleSub: {
+    fontSize: 11,
+    color: GeckosColors.mutedText,
+    marginTop: 2,
   },
   pauseOrdersButton: {
     borderRadius: 999,
