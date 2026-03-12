@@ -1,7 +1,7 @@
 // Supabase Edge Function — send-announcement-notification
 // Sends an Expo push notification to all registered device tokens.
 // Requires a valid staff session (Authorization: Bearer <access_token>).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
