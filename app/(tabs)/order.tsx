@@ -25,7 +25,7 @@ import { REWARDS, type RewardConfig } from "@/src/config/rewards";
 const PHONE_DISPLAY = "580-564-9599";
 const PHONE_DIAL = "5805649599";
 
-type OrderState = "cart" | "submitting" | "confirmed";
+type OrderState = "cart" | "submitting";
 
 function CartItemRow({
   item,
@@ -259,7 +259,6 @@ export default function OrderScreen() {
   const { items, removeItem, updateQuantity, clearCart, subtotal } = useCart();
   const { session, profile, isLoggedIn } = useAuth();
   const [orderState, setOrderState] = useState<OrderState>("cart");
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pickupTime, setPickupTime] = useState("");
@@ -268,25 +267,6 @@ export default function OrderScreen() {
   const [userPoints, setUserPoints] = useState<number | null>(null);
   const [selectedReward, setSelectedReward] = useState<RewardConfig | null>(null);
 
-  // Check for an active order on mount (so tracker can be reopened)
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    supabase
-      .from("orders")
-      .select("id, status")
-      .eq("user_id", session.user.id)
-      .not("status", "in", '("picked_up","cancelled")')
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.id) {
-          setActiveOrderId(data.id);
-          setOrderState("confirmed");
-        }
-      });
-  }, [session?.user?.id]);
 
   // Pre-fill name and phone from profile when user signs in
   useEffect(() => {
@@ -381,50 +361,12 @@ export default function OrderScreen() {
     } as any);
   };
 
-  const handleDone = () => {
-    clearCart();
-    setActiveOrderId(null);
-    setCustomerName("");
-    setCustomerPhone("");
-    setPickupTime("");
-    setSelectedReward(null);
-    setProfileLoaded(false);
-    setOrderState("cart");
-  };
-
-  // Close tracker but keep order ID — it'll be found again on next visit
-  const handleCloseTracker = () => {
-    setOrderState("cart");
-  };
-
-  if (orderState === "confirmed" && activeOrderId) {
-    return (
-      <>
-        <StatusBar style="light" />
-        <AppContainer>
-          <OrderTracker orderId={activeOrderId} onDone={handleDone} onClose={handleCloseTracker} />
-        </AppContainer>
-      </>
-    );
-  }
-
-  const activeOrderBanner = activeOrderId && orderState === "cart" ? (
-    <Pressable
-      onPress={() => setOrderState("confirmed")}
-      style={({ pressed }) => [styles.activeOrderBanner, pressed && styles.pressed]}
-    >
-      <Ionicons name="time-outline" size={20} color="#fff" />
-      <GeckosText style={styles.activeOrderBannerText}>You have an active order — tap to track</GeckosText>
-      <Ionicons name="chevron-forward" size={18} color="#fff" />
-    </Pressable>
-  ) : null;
 
   if (items.length === 0) {
     return (
       <>
         <StatusBar style="light" />
         <AppContainer>
-          {activeOrderBanner}
           <EmptyCart />
         </AppContainer>
       </>
@@ -446,8 +388,7 @@ export default function OrderScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {activeOrderBanner}
-            {notAcceptingBanner}
+              {notAcceptingBanner}
 
             {/* Header */}
             <GeckosText style={styles.screenTitle}>Your Order</GeckosText>
@@ -1016,7 +957,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Active order banner
   activeOrderBanner: {
     flexDirection: "row",
     alignItems: "center",
