@@ -17,9 +17,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    console.log("[notify] request received", req.method);
+
     // ── Authenticate: must be a logged-in staff member ──────────────────────
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[notify] missing or invalid auth header");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
@@ -27,6 +30,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
+    console.log("[notify] token present, length:", token.length);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -34,11 +39,14 @@ Deno.serve(async (req: Request) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
+      console.error("[notify] auth failed:", authError?.message);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("[notify] user authenticated:", user.id);
 
     const { data: staffRow } = await supabase
       .from("staff_users")
@@ -47,11 +55,14 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!staffRow) {
+      console.error("[notify] not a staff user:", user.id);
       return new Response(
         JSON.stringify({ error: "Forbidden: staff access required" }),
         { status: 403, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("[notify] staff check passed");
 
     // ── Parse body ───────────────────────────────────────────────────────────
     const { title, body } = await req.json() as { title: string; body?: string };
@@ -77,6 +88,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const tokens = rows.map((r: { token: string }) => r.token);
+    console.log("[notify] sending to", tokens.length, "device(s)");
 
     // ── Send to Expo Push API in batches of 100 ──────────────────────────────
     const BATCH_SIZE = 100;
@@ -98,9 +110,12 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify(messages),
       });
 
+      const expoResult = await res.json().catch(() => null);
+      console.log("[notify] expo response:", JSON.stringify(expoResult));
       if (res.ok) sent += batch.length;
     }
 
+    console.log("[notify] done, sent:", sent);
     return new Response(
       JSON.stringify({ sent }),
       { headers: { ...CORS, "Content-Type": "application/json" } }
