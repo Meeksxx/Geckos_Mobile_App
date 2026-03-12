@@ -11,7 +11,6 @@ const CORS = {
 const EXPO_PUSH_URL   = "https://exp.host/--/api/v2/push/send";
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY        = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -35,7 +34,7 @@ Deno.serve(async (req: Request) => {
 
     // Get user from token
     const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { "apikey": ANON_KEY, "Authorization": `Bearer ${callerToken}` },
+      headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${callerToken}` },
     });
     if (!userRes.ok) {
       console.error("[notify] auth failed:", userRes.status);
