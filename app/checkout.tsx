@@ -93,34 +93,6 @@ export default function CheckoutScreen() {
     });
   }
 
-  /* ── Pay at Gecko's ───────────────────────────────────── */
-  async function handlePayAtRestaurant() {
-    setLoading(true);
-    try {
-      const { data: accepting } = await supabase.rpc("is_accepting_orders");
-      if (!accepting) {
-        Alert.alert("Orders Paused", "The restaurant is not currently accepting orders. Please call us at 580-564-9599.");
-        setLoading(false);
-        return;
-      }
-      const { error } = await supabase.from("orders").insert(
-        buildOrderPayload({
-          payment_method: "pay_at_restaurant",
-          payment_status: "pending",
-        })
-      );
-      if (error) throw error;
-      await deductRewardIfSelected();
-      clearCart();
-      router.replace("/(tabs)/order");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Please try again.";
-      Alert.alert("Order Failed", msg);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   /* ── Pay with Stripe ──────────────────────────────────── */
   async function handlePayNow() {
     setLoading(true);
@@ -249,8 +221,6 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        <GeckosText style={styles.sectionTitle}>How would you like to pay?</GeckosText>
-
         {/* Pay Now */}
         <Pressable
           onPress={handlePayNow}
@@ -277,30 +247,6 @@ export default function CheckoutScreen() {
         <GeckosText style={styles.subtext}>
           Debit · Credit · Apple Pay · Google Pay · Secure via Stripe
         </GeckosText>
-
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <GeckosText style={styles.dividerText}>or</GeckosText>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Pay at Gecko's */}
-        <Pressable
-          onPress={handlePayAtRestaurant}
-          disabled={loading}
-          style={({ pressed }) => [
-            styles.btn,
-            styles.btnOutline,
-            pressed && styles.btnPressed,
-            loading && styles.btnDisabled,
-          ]}
-        >
-          <Ionicons name="storefront-outline" size={21} color={GeckosColors.text} />
-          <GeckosText style={styles.btnOutlineText}>Pay at Gecko&apos;s</GeckosText>
-        </Pressable>
-
-        <GeckosText style={styles.subtext}>Pay when you pick up your order.</GeckosText>
       </ScrollView>
     </>
   );
@@ -391,16 +337,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#fff",
   },
-  btnOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: GeckosColors.border,
-  },
-  btnOutlineText: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: GeckosColors.text,
-  },
   discountLabel: {
     color: GeckosColors.geckoGreen,
     fontStyle: "italic",
@@ -418,21 +354,5 @@ const styles = StyleSheet.create({
     color: GeckosColors.mutedText,
     textAlign: "center",
     marginTop: -6,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginVertical: 4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: GeckosColors.border,
-  },
-  dividerText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: GeckosColors.mutedText,
   },
 });

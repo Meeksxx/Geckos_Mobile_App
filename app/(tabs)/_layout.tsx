@@ -4,7 +4,6 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { GeckosColors } from "@/src/theme/colors";
 import { GeckosText } from "@/src/components/GeckosText";
-import { CartToast } from "@/src/components/CartToast";
 import { useCart } from "@/src/context/CartContext";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -118,7 +117,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    <CartToast />
     </View>
   );
 }

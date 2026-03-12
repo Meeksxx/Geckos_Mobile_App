@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,30 @@ import { GeckosColors } from "@/src/theme/colors";
 
 const REFUND_EDGE_URL =
   `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/refund-payment`;
+
+// ── Business hours helpers (Oklahoma = America/Chicago) ──────────────────────
+function getCentralMinutes(): { day: number; totalMinutes: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const dayStr = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const min  = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { day: dayMap[dayStr] ?? -1, totalMinutes: hour * 60 + min };
+}
+
+function isWithinBusinessHours(): boolean {
+  const { day, totalMinutes } = getCentralMinutes();
+  if (day === 0) return false; // Sunday closed
+  const open  = 11 * 60;                                    // 11:00 AM
+  const close = day >= 5 ? 20 * 60 + 40 : 20 * 60 + 10;   // Fri/Sat 8:40 PM, else 8:10 PM (20 min before close)
+  return totalMinutes >= open && totalMinutes < close;
+}
 
 type OrderStatus = "new" | "accepted" | "preparing" | "ready" | "picked_up" | "cancelled";
 
@@ -121,28 +145,6 @@ function getStatusColor(status: OrderStatus | null) {
   return "#EF4444";
 }
 
-const FORWARD_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
-  new: "accepted",
-  accepted: "preparing",
-  preparing: "ready",
-  ready: "picked_up",
-};
-
-const UNDO_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
-  accepted: "new",
-  preparing: "accepted",
-  ready: "preparing",
-  picked_up: "ready",
-  cancelled: "new",
-};
-
-function getForwardLabel(nextStatus: OrderStatus | null) {
-  if (nextStatus === "accepted") return "Accept";
-  if (nextStatus === "preparing") return "Start";
-  if (nextStatus === "ready") return "Ready";
-  if (nextStatus === "picked_up") return "Picked Up";
-  return null;
-}
 
 function StaffLogin({
   onSignedIn,
@@ -245,46 +247,39 @@ function OrderCard({
   busy: boolean;
 }) {
   const currentStatus = (order.status ?? "new") as OrderStatus;
-  const nextStatus = FORWARD_TRANSITIONS[currentStatus] ?? null;
-  const undoStatus = UNDO_TRANSITIONS[currentStatus] ?? null;
-  const forwardLabel = getForwardLabel(nextStatus);
   const statusLabel = getStatusLabel(order.status);
   const statusColor = getStatusColor(order.status);
   const subtotal = Number(order.subtotal ?? 0).toFixed(2);
   const pickupDisplay = order.pickup_time?.trim() || "ASAP";
   const isStripePaid = order.payment_method === "stripe";
 
-  const handlePressStatus = useCallback(
-    (targetStatus: OrderStatus) => {
-      if (targetStatus === "cancelled") {
-        const cancelMsg = isStripePaid
-          ? "This order was paid via Stripe. A full refund will be issued automatically."
-          : "This marks the ticket as cancelled. You can undo it.";
+  const handlePickedUp = useCallback(() => {
+    void onUpdateStatus(order.id, "picked_up");
+  }, [onUpdateStatus, order.id]);
 
-        if (Platform.OS === "web") {
-          const confirmed = typeof globalThis.confirm === "function"
-            ? globalThis.confirm(`Cancel this order? ${cancelMsg}`)
-            : true;
-          if (!confirmed) return;
-          void onCancel(order);
-          return;
-        }
+  const handleCancel = useCallback(() => {
+    const cancelMsg = isStripePaid
+      ? "This order was paid via Stripe. A full refund will be issued automatically."
+      : "This marks the ticket as cancelled.";
 
-        Alert.alert("Cancel Order?", cancelMsg, [
-          { text: "Keep", style: "cancel" },
-          {
-            text: isStripePaid ? "Cancel & Refund" : "Cancel Order",
-            style: "destructive",
-            onPress: () => { void onCancel(order); },
-          },
-        ]);
-        return;
-      }
+    if (Platform.OS === "web") {
+      const confirmed = typeof globalThis.confirm === "function"
+        ? globalThis.confirm(`Cancel this order? ${cancelMsg}`)
+        : true;
+      if (!confirmed) return;
+      void onCancel(order);
+      return;
+    }
 
-      void onUpdateStatus(order.id, targetStatus);
-    },
-    [isStripePaid, onCancel, onUpdateStatus, order]
-  );
+    Alert.alert("Cancel Order?", cancelMsg, [
+      { text: "Keep", style: "cancel" },
+      {
+        text: isStripePaid ? "Cancel & Refund" : "Cancel Order",
+        style: "destructive",
+        onPress: () => { void onCancel(order); },
+      },
+    ]);
+  }, [isStripePaid, onCancel, order]);
 
   return (
     <View style={styles.orderCard}>
@@ -359,39 +354,10 @@ function OrderCard({
       <View style={styles.cardFooter}>
         <GeckosText style={styles.subtotalText}>Subtotal: ${subtotal}</GeckosText>
 
-        <View style={styles.actionRow}>
-          {undoStatus ? (
+        {currentStatus !== "cancelled" && currentStatus !== "picked_up" ? (
+          <View style={styles.actionRow}>
             <Pressable
-              onPress={() => handlePressStatus(undoStatus)}
-              disabled={busy}
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.undoButton,
-                pressed ? styles.buttonPressed : null,
-                busy ? styles.buttonDisabled : null,
-              ]}
-            >
-              <GeckosText style={styles.undoButtonText}>Undo</GeckosText>
-            </Pressable>
-          ) : null}
-
-          {forwardLabel && nextStatus ? (
-            <Pressable
-              onPress={() => handlePressStatus(nextStatus)}
-              disabled={busy}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed ? styles.buttonPressed : null,
-                busy ? styles.buttonDisabled : null,
-              ]}
-            >
-              <GeckosText style={styles.actionButtonText}>{forwardLabel}</GeckosText>
-            </Pressable>
-          ) : null}
-
-          {currentStatus !== "cancelled" && currentStatus !== "picked_up" ? (
-            <Pressable
-              onPress={() => handlePressStatus("cancelled")}
+              onPress={handleCancel}
               disabled={busy}
               style={({ pressed }) => [
                 styles.actionButton,
@@ -402,8 +368,21 @@ function OrderCard({
             >
               <GeckosText style={styles.actionButtonText}>Cancel</GeckosText>
             </Pressable>
-          ) : null}
-        </View>
+
+            <Pressable
+              onPress={handlePickedUp}
+              disabled={busy}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.pickedUpButton,
+                pressed ? styles.buttonPressed : null,
+                busy ? styles.buttonDisabled : null,
+              ]}
+            >
+              <GeckosText style={styles.actionButtonText}>Picked Up</GeckosText>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -425,6 +404,11 @@ export default function KitchenScreen() {
   const [historyDayId, setHistoryDayId] = useState<string | null>(null);
   const [dayActionBusy, setDayActionBusy] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const autoAcceptedRef = useRef<Set<string>>(new Set());
+  const [ordersPaused, setOrdersPaused] = useState(false);
+  // Mutable ref keeps latest volatile values accessible inside the schedule interval
+  // without causing the interval to restart on every render.
+  const scheduleRef = useRef({ openDay: null as KitchenDay | null, ordersPaused: false, isStaff: false });
 
   const checkStaffAccess = useCallback(async (currentSession: Session | null) => {
     setAuthError(null);
@@ -505,6 +489,15 @@ export default function KitchenScreen() {
     setDays(dayRows);
   }, []);
 
+  const fetchSettings = useCallback(async () => {
+    const { data } = await supabase
+      .from("restaurant_settings")
+      .select("orders_paused")
+      .eq("id", true)
+      .maybeSingle();
+    setOrdersPaused(data?.orders_paused ?? false);
+  }, []);
+
   const runRetentionSweep = useCallback(async () => {
     const { error } = await supabase.rpc("archive_and_purge_orders", {
       archive_after_hours: 36,
@@ -517,9 +510,9 @@ export default function KitchenScreen() {
     if (!isStaff) return;
     setLoading(true);
     await runRetentionSweep();
-    await Promise.all([fetchOrders(), fetchDays()]);
+    await Promise.all([fetchOrders(), fetchDays(), fetchSettings()]);
     setLoading(false);
-  }, [fetchDays, fetchOrders, isStaff, runRetentionSweep]);
+  }, [fetchDays, fetchOrders, fetchSettings, isStaff, runRetentionSweep]);
 
   useEffect(() => {
     loadInitial();
@@ -559,9 +552,9 @@ export default function KitchenScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await runRetentionSweep();
-    await Promise.all([fetchOrders(), fetchDays()]);
+    await Promise.all([fetchOrders(), fetchDays(), fetchSettings()]);
     setRefreshing(false);
-  }, [fetchDays, fetchOrders, runRetentionSweep]);
+  }, [fetchDays, fetchOrders, fetchSettings, runRetentionSweep]);
 
   const openDay = useMemo(() => days.find((day) => !day.closed_at) ?? null, [days]);
   const closedDays = useMemo(() => days.filter((day) => !!day.closed_at), [days]);
@@ -675,6 +668,84 @@ export default function KitchenScreen() {
     );
   }, [fetchDays, openDay, openDayActiveCount]);
 
+  // ── Pause / Resume (manual override of auto-schedule) ───────────────────────
+  const handlePauseOrders = useCallback(async () => {
+    if (!openDay) return;
+    setDayActionBusy(true);
+    const { error } = await supabase
+      .from("kitchen_days")
+      .update({ closed_at: new Date().toISOString() })
+      .eq("id", openDay.id);
+    if (!error) {
+      await supabase.from("restaurant_settings").update({ orders_paused: true }).eq("id", true);
+      setOrdersPaused(true);
+    } else {
+      Alert.alert("Pause Failed", error.message);
+    }
+    setDayActionBusy(false);
+    await fetchDays();
+  }, [openDay, fetchDays]);
+
+  const handleResumeOrders = useCallback(async () => {
+    setDayActionBusy(true);
+    const { error } = await supabase
+      .from("restaurant_settings")
+      .update({ orders_paused: false })
+      .eq("id", true);
+    if (!error) {
+      setOrdersPaused(false);
+      // Immediately open a new day so orders resume right away.
+      const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
+      const { data: dayData, error: dayError } = await supabase
+        .from("kitchen_days")
+        .insert({ label: dayLabel })
+        .select("id, label, opened_at, closed_at")
+        .single();
+      if (!dayError && dayData) setDays((prev) => [dayData as KitchenDay, ...prev]);
+      await fetchDays();
+    } else {
+      Alert.alert("Resume Failed", error.message);
+    }
+    setDayActionBusy(false);
+  }, [fetchDays]);
+
+  // ── Auto-schedule: keep scheduleRef current on every render ─────────────────
+  scheduleRef.current.openDay = openDay;
+  scheduleRef.current.ordersPaused = ordersPaused;
+  scheduleRef.current.isStaff = isStaff;
+
+  useEffect(() => {
+    const runSchedule = async () => {
+      const { openDay: od, ordersPaused: paused, isStaff: staff } = scheduleRef.current;
+      if (!staff) return;
+      const withinHours = isWithinBusinessHours();
+
+      if (withinHours && !od && !paused) {
+        // Auto-open when restaurant hours begin
+        const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
+        const { data, error } = await supabase
+          .from("kitchen_days")
+          .insert({ label: dayLabel })
+          .select("id, label, opened_at, closed_at")
+          .single();
+        if (!error && data) {
+          setDays((prev) => [data as KitchenDay, ...prev]);
+          void fetchDays();
+        }
+      } else if (!withinHours && od) {
+        // Auto-close and reset pause flag so tomorrow's open fires correctly
+        await supabase.from("kitchen_days").update({ closed_at: new Date().toISOString() }).eq("id", od.id);
+        await supabase.from("restaurant_settings").update({ orders_paused: false }).eq("id", true);
+        setOrdersPaused(false);
+        void fetchDays();
+      }
+    };
+
+    void runSchedule();
+    const id = setInterval(() => void runSchedule(), 60_000);
+    return () => clearInterval(id);
+  }, [isStaff, fetchDays]); // interval restarts only on auth change
+
   const handleToggleHistory = useCallback(() => {
     if (!showHistory) {
       setShowHistory(true);
@@ -744,6 +815,18 @@ export default function KitchenScreen() {
 
     await fetchOrders();
   }, [fetchOrders]);
+
+  // Auto-accept any new orders that arrive
+  useEffect(() => {
+    if (!isStaff) return;
+    const newOrders = orders.filter(
+      (o) => o.status === "new" && !autoAcceptedRef.current.has(o.id)
+    );
+    for (const order of newOrders) {
+      autoAcceptedRef.current.add(order.id);
+      void handleUpdateStatus(order.id, "accepted");
+    }
+  }, [orders, isStaff, handleUpdateStatus]);
 
   const handleCancelOrder = useCallback(async (order: KitchenOrder) => {
     setUpdatingOrderId(order.id);
@@ -931,9 +1014,21 @@ export default function KitchenScreen() {
               </ScrollView>
             ) : (
               <View style={styles.daySessionActions}>
-                {!openDay ? (
+                {openDay ? (
                   <Pressable
-                    onPress={handleOpenDay}
+                    onPress={handlePauseOrders}
+                    disabled={dayActionBusy}
+                    style={({ pressed }) => [
+                      styles.pauseOrdersButton,
+                      pressed ? styles.buttonPressed : null,
+                      dayActionBusy ? styles.buttonDisabled : null,
+                    ]}
+                  >
+                    <GeckosText style={styles.pauseOrdersButtonText}>Pause Orders</GeckosText>
+                  </Pressable>
+                ) : ordersPaused ? (
+                  <Pressable
+                    onPress={handleResumeOrders}
                     disabled={dayActionBusy}
                     style={({ pressed }) => [
                       styles.dayActionButton,
@@ -941,20 +1036,13 @@ export default function KitchenScreen() {
                       dayActionBusy ? styles.buttonDisabled : null,
                     ]}
                   >
-                    <GeckosText style={styles.dayActionButtonText}>Open Day</GeckosText>
+                    <GeckosText style={styles.dayActionButtonText}>Resume Orders</GeckosText>
                   </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={handleCloseCurrentDay}
-                  disabled={dayActionBusy || !openDay}
-                  style={({ pressed }) => [
-                    styles.closeDayButton,
-                    pressed ? styles.buttonPressed : null,
-                    (dayActionBusy || !openDay) ? styles.buttonDisabled : null,
-                  ]}
-                >
-                  <GeckosText style={styles.closeDayButtonText}>Close Day</GeckosText>
-                </Pressable>
+                ) : (
+                  <GeckosText style={styles.scheduleStatusText}>
+                    {isWithinBusinessHours() ? "Opening automatically…" : "Closed · Opens at 11 AM"}
+                  </GeckosText>
+                )}
               </View>
             )}
           </View>
@@ -1117,6 +1205,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     color: GeckosColors.text,
+  },
+  pauseOrdersButton: {
+    borderRadius: 999,
+    backgroundColor: "#7C2D12",
+    borderWidth: 1,
+    borderColor: "#DC2626",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pauseOrdersButtonText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#FCA5A5",
+  },
+  scheduleStatusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: GeckosColors.mutedText,
   },
   title: {
     fontSize: 30,
@@ -1432,18 +1540,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: GeckosColors.geckoGreen,
   },
-  undoButton: {
-    backgroundColor: GeckosColors.background,
-    borderWidth: 1,
-    borderColor: GeckosColors.border,
-  },
-  undoButtonText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: GeckosColors.text,
-  },
   cancelButton: {
     backgroundColor: GeckosColors.chiliRed,
+  },
+  pickedUpButton: {
+    backgroundColor: GeckosColors.geckoGreen,
+    flex: 1,
+    alignItems: "center",
   },
   actionButtonText: {
     fontSize: 14,

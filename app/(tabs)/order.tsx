@@ -560,11 +560,28 @@ export default function OrderScreen() {
                     </View>
                     <View style={styles.profileSummaryDivider} />
                     <GeckosText style={styles.inputLabel}>Pickup Time (optional)</GeckosText>
+                    <View style={styles.pickupChips}>
+                      {["Here Now", "ASAP", "15 min", "30 min", "45 min"].map((opt) => (
+                        <Pressable
+                          key={opt}
+                          onPress={() => setPickupTime(pickupTime === opt ? "" : opt)}
+                          style={({ pressed }) => [
+                            styles.pickupChip,
+                            pickupTime === opt && styles.pickupChipSelected,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <GeckosText style={[styles.pickupChipText, pickupTime === opt && styles.pickupChipTextSelected]}>
+                            {opt}
+                          </GeckosText>
+                        </Pressable>
+                      ))}
+                    </View>
                     <TextInput
                       style={styles.input}
-                      value={pickupTime}
+                      value={["Here Now", "ASAP", "15 min", "30 min", "45 min"].includes(pickupTime) ? "" : pickupTime}
                       onChangeText={setPickupTime}
-                      placeholder="e.g. 6:30 PM"
+                      placeholder="Or enter a specific time…"
                       placeholderTextColor={GeckosColors.mutedText}
                       returnKeyType="done"
                     />
@@ -597,11 +614,28 @@ export default function OrderScreen() {
                     />
 
                     <GeckosText style={styles.inputLabel}>Pickup Time (optional)</GeckosText>
+                    <View style={styles.pickupChips}>
+                      {["Here Now", "ASAP", "15 min", "30 min", "45 min"].map((opt) => (
+                        <Pressable
+                          key={opt}
+                          onPress={() => setPickupTime(pickupTime === opt ? "" : opt)}
+                          style={({ pressed }) => [
+                            styles.pickupChip,
+                            pickupTime === opt && styles.pickupChipSelected,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <GeckosText style={[styles.pickupChipText, pickupTime === opt && styles.pickupChipTextSelected]}>
+                            {opt}
+                          </GeckosText>
+                        </Pressable>
+                      ))}
+                    </View>
                     <TextInput
                       style={styles.input}
-                      value={pickupTime}
+                      value={["Here Now", "ASAP", "15 min", "30 min", "45 min"].includes(pickupTime) ? "" : pickupTime}
                       onChangeText={setPickupTime}
-                      placeholder="e.g. 6:30 PM"
+                      placeholder="Or enter a specific time…"
                       placeholderTextColor={GeckosColors.mutedText}
                       returnKeyType="done"
                     />
@@ -918,6 +952,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: GeckosColors.mutedText,
+  },
+
+  // Pickup time chips
+  pickupChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  pickupChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.border,
+    backgroundColor: GeckosColors.surface,
+  },
+  pickupChipSelected: {
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: "rgba(74, 222, 128, 0.1)",
+  },
+  pickupChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: GeckosColors.mutedText,
+  },
+  pickupChipTextSelected: {
+    color: GeckosColors.geckoGreen,
   },
 
   // Closed / not accepting orders banner

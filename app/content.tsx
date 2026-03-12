@@ -23,6 +23,9 @@ import { StaffNav } from "@/src/components/StaffNav";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
+const NOTIFY_EDGE_URL =
+  `${(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "")}/functions/v1/send-announcement-notification`;
+
 /* ─────────────────────── TYPES ─────────────────────── */
 
 type Announcement = {
@@ -118,6 +121,7 @@ function AnnouncementForm({
   const [emoji, setEmoji] = useState(initial?.emoji ?? "📢");
   const [imageUri, setImageUri] = useState<string | null>(initial?.image_url ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -128,6 +132,7 @@ function AnnouncementForm({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: true,
+      aspect: [5, 2],  // wide announcement banner
       quality: 0.8,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -156,9 +161,10 @@ function AnnouncementForm({
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert("Title required", "Please enter a title for the announcement.");
+      setTitleError("A title is required — please add one before saving.");
       return;
     }
+    setTitleError(null);
     onSave({ title: title.trim(), body: body.trim(), emoji, imageUri });
   };
 
@@ -181,15 +187,23 @@ function AnnouncementForm({
         ))}
       </ScrollView>
 
-      <GeckosText style={styles.fieldLabel}>Title *</GeckosText>
+      <GeckosText style={[styles.fieldLabel, titleError ? styles.fieldLabelError : null]}>
+        Title *
+      </GeckosText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, titleError ? styles.inputError : null]}
         value={title}
-        onChangeText={setTitle}
+        onChangeText={(text) => { setTitle(text); if (titleError) setTitleError(null); }}
         placeholder="e.g. Live Music This Saturday!"
         placeholderTextColor={GeckosColors.mutedText}
         returnKeyType="next"
       />
+      {titleError ? (
+        <View style={styles.inlineError}>
+          <Ionicons name="alert-circle" size={15} color={GeckosColors.chiliRed} />
+          <GeckosText style={styles.inlineErrorText}>{titleError}</GeckosText>
+        </View>
+      ) : null}
 
       <GeckosText style={styles.fieldLabel}>Details (optional)</GeckosText>
       <TextInput
@@ -216,20 +230,23 @@ function AnnouncementForm({
           </Pressable>
         </View>
       ) : (
-        <Pressable
-          onPress={handlePickImage}
-          disabled={uploadingImage}
-          style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingImage && styles.btnDisabled]}
-        >
-          {uploadingImage ? (
-            <ActivityIndicator color={GeckosColors.mutedText} size="small" />
-          ) : (
-            <Ionicons name="image-outline" size={20} color={GeckosColors.mutedText} />
-          )}
-          <GeckosText style={styles.imagePickBtnText}>
-            {uploadingImage ? "Uploading..." : "Add Photo"}
-          </GeckosText>
-        </Pressable>
+        <>
+          <Pressable
+            onPress={handlePickImage}
+            disabled={uploadingImage}
+            style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingImage && styles.btnDisabled]}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator color={GeckosColors.mutedText} size="small" />
+            ) : (
+              <Ionicons name="image-outline" size={20} color={GeckosColors.mutedText} />
+            )}
+            <GeckosText style={styles.imagePickBtnText}>
+              {uploadingImage ? "Uploading..." : "Add Photo"}
+            </GeckosText>
+          </Pressable>
+          <GeckosText style={styles.imageHintText}>Wide (5:2) — announcement banner</GeckosText>
+        </>
       )}
 
       <View style={styles.formActions}>
@@ -260,19 +277,23 @@ function AnnouncementRow({
   onEdit,
   onToggle,
   onDelete,
+  onNotify,
   onMoveUp,
   onMoveDown,
   isFirst,
   isLast,
+  notifying,
 }: {
   item: Announcement;
   onEdit: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  onNotify: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   isFirst: boolean;
   isLast: boolean;
+  notifying: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -329,6 +350,16 @@ function AnnouncementRow({
           </>
         ) : (
           <>
+            <Pressable
+              onPress={onNotify}
+              disabled={notifying}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed, notifying && styles.btnDisabled]}
+              hitSlop={8}
+            >
+              {notifying
+                ? <ActivityIndicator size="small" color={GeckosColors.geckoGreen} />
+                : <Ionicons name="notifications-outline" size={18} color={GeckosColors.geckoGreen} />}
+            </Pressable>
             <Pressable
               onPress={onEdit}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
@@ -391,6 +422,7 @@ export default function ContentScreen() {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Announcement | null>(null);
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
 
   const checkStaffAccess = useCallback(async (currentSession: Session | null) => {
     setAuthError(null);
@@ -493,6 +525,32 @@ export default function ContentScreen() {
     ]);
     await fetchAnnouncements();
   };
+
+  const handleNotify = useCallback(async (item: Announcement) => {
+    setNotifyingId(item.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token ?? "";
+      const res = await fetch(NOTIFY_EDGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          title: `${item.emoji} ${item.title}`,
+          body: item.body ?? "",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+      Alert.alert("Notification Sent!", `Notified ${json.sent ?? 0} device${json.sent !== 1 ? "s" : ""}.`);
+    } catch (err: unknown) {
+      Alert.alert("Send Failed", err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setNotifyingId(null);
+    }
+  }, []);
 
   const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -629,8 +687,10 @@ export default function ContentScreen() {
                 onEdit={() => { setEditingItem(item); setShowForm(false); }}
                 onToggle={() => handleToggle(item)}
                 onDelete={() => { void handleDelete(item); }}
+                onNotify={() => { void handleNotify(item); }}
                 onMoveUp={() => handleMove(index, "up")}
                 onMoveDown={() => handleMove(index, "down")}
+                notifying={notifyingId === item.id}
               />
             ))
           )}
@@ -792,6 +852,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: GeckosColors.text,
   },
+  inputError: {
+    borderColor: GeckosColors.chiliRed,
+    borderWidth: 1.5,
+  },
+  fieldLabelError: {
+    color: GeckosColors.chiliRed,
+  },
+  inlineError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: -4,
+  },
+  inlineErrorText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: GeckosColors.chiliRed,
+    flex: 1,
+  },
   inputMultiline: {
     minHeight: 80,
     textAlignVertical: "top",
@@ -812,6 +891,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: GeckosColors.mutedText,
+  },
+  imageHintText: {
+    fontSize: 11,
+    color: GeckosColors.mutedText,
+    marginTop: 5,
+    textAlign: "center",
   },
   imagePreviewWrap: {
     borderRadius: 12,

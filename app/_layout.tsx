@@ -9,10 +9,17 @@ import { AuthProvider } from "@/src/context/AuthContext";
 import { CartProvider } from "@/src/context/CartContext";
 import { MenuProvider } from "@/src/context/MenuContext";
 import StripeWrapper from "@/src/components/StripeWrapper";
+import { usePushNotifications } from "@/src/hooks/usePushNotifications";
+import { CartToast } from "@/src/components/CartToast";
 
 export const unstable_settings = {
   anchor: "(tabs)",
 };
+
+function PushRegistrar() {
+  usePushNotifications();
+  return null;
+}
 
 export default function RootLayout() {
   const pathname = usePathname();
@@ -41,6 +48,7 @@ export default function RootLayout() {
   return (
     <StripeWrapper>
     <AuthProvider>
+    <PushRegistrar />
     <MenuProvider>
     <CartProvider>
       <View style={styles.root}>
@@ -54,6 +62,9 @@ export default function RootLayout() {
 
         {/* Keep status bar consistent with dark theme */}
         <StatusBar style="light" />
+
+        {/* Cart toast — lives here so it shows on all screens including category */}
+        <CartToast />
 
         {/* In-app launch overlay (shows in Expo Go) */}
         {showLaunch && (

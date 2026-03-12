@@ -425,6 +425,7 @@ export default function MenuContentScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: true,
+      aspect: [1, 1],  // square thumbnail
       quality: 0.85,
     });
     if (result.canceled) return;
@@ -603,6 +604,7 @@ export default function MenuContentScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: true,
+      aspect: [16, 9],  // category card landscape
       quality: 0.85,
     });
     if (result.canceled) return;
@@ -764,7 +766,7 @@ export default function MenuContentScreen() {
   const handlePickSpecialImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") { Alert.alert("Permission needed", "Please allow access to your photo library."); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: true, quality: 0.85 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: true, aspect: [8, 3], quality: 0.85 });
     if (result.canceled) return;
     const asset = result.assets[0];
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) { Alert.alert("Image too large", "Please choose an image under 5 MB."); return; }
@@ -1014,20 +1016,23 @@ export default function MenuContentScreen() {
               </Pressable>
             </View>
           ) : (
-            <Pressable
-              onPress={handlePickImage}
-              disabled={uploadingImage}
-              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingImage && styles.btnDisabled]}
-            >
-              {uploadingImage ? (
-                <ActivityIndicator color={GeckosColors.geckoGreen} />
-              ) : (
-                <>
-                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
-                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
-                </>
-              )}
-            </Pressable>
+            <>
+              <Pressable
+                onPress={handlePickImage}
+                disabled={uploadingImage}
+                style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingImage && styles.btnDisabled]}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator color={GeckosColors.geckoGreen} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                    <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                  </>
+                )}
+              </Pressable>
+              <GeckosText style={styles.imageHintText}>Square (1:1) — item thumbnail</GeckosText>
+            </>
           )}
 
           <View style={styles.formActions}>
@@ -1281,20 +1286,23 @@ export default function MenuContentScreen() {
               </Pressable>
             </View>
           ) : (
-            <Pressable
-              onPress={handlePickCategoryImage}
-              disabled={uploadingCatImage}
-              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingCatImage && styles.btnDisabled]}
-            >
-              {uploadingCatImage ? (
-                <ActivityIndicator color={GeckosColors.geckoGreen} />
-              ) : (
-                <>
-                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
-                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
-                </>
-              )}
-            </Pressable>
+            <>
+              <Pressable
+                onPress={handlePickCategoryImage}
+                disabled={uploadingCatImage}
+                style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingCatImage && styles.btnDisabled]}
+              >
+                {uploadingCatImage ? (
+                  <ActivityIndicator color={GeckosColors.geckoGreen} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                    <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                  </>
+                )}
+              </Pressable>
+              <GeckosText style={styles.imageHintText}>Landscape (16:9) — category card</GeckosText>
+            </>
           )}
 
           <View style={styles.formActions}>
@@ -1587,20 +1595,23 @@ export default function MenuContentScreen() {
               </Pressable>
             </View>
           ) : (
-            <Pressable
-              onPress={handlePickSpecialImage}
-              disabled={uploadingSpecialImage}
-              style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingSpecialImage && styles.btnDisabled]}
-            >
-              {uploadingSpecialImage ? (
-                <ActivityIndicator color={GeckosColors.geckoGreen} />
-              ) : (
-                <>
-                  <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
-                  <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
-                </>
-              )}
-            </Pressable>
+            <>
+              <Pressable
+                onPress={handlePickSpecialImage}
+                disabled={uploadingSpecialImage}
+                style={({ pressed }) => [styles.imagePickBtn, pressed && styles.pressed, uploadingSpecialImage && styles.btnDisabled]}
+              >
+                {uploadingSpecialImage ? (
+                  <ActivityIndicator color={GeckosColors.geckoGreen} />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={18} color={GeckosColors.geckoGreen} />
+                    <GeckosText style={styles.imagePickText}>Upload Photo</GeckosText>
+                  </>
+                )}
+              </Pressable>
+              <GeckosText style={styles.imageHintText}>Wide banner (8:3) — special strip background</GeckosText>
+            </>
           )}
 
           <View style={styles.formActions}>
@@ -1925,6 +1936,12 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     paddingVertical: 14,
     backgroundColor: "rgba(20, 143, 26, 0.06)",
+  },
+  imageHintText: {
+    fontSize: 11,
+    color: GeckosColors.mutedText,
+    marginTop: 5,
+    textAlign: "center",
   },
   imagePickText: {
     fontSize: 14,
