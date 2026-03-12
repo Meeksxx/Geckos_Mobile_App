@@ -23,8 +23,6 @@ import { StaffNav } from "@/src/components/StaffNav";
 import { supabase } from "@/src/lib/supabase";
 import { GeckosColors } from "@/src/theme/colors";
 
-const NOTIFY_EDGE_URL =
-  `${(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "")}/functions/v1/send-announcement-notification`;
 
 /* ─────────────────────── TYPES ─────────────────────── */
 
@@ -529,22 +527,14 @@ export default function ContentScreen() {
   const handleNotify = useCallback(async (item: Announcement) => {
     setNotifyingId(item.id);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token ?? "";
-      const res = await fetch(NOTIFY_EDGE_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke("send-announcement-notification", {
+        body: {
           title: `${item.emoji} ${item.title}`,
           body: item.body ?? "",
-        }),
+        },
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
-      Alert.alert("Notification Sent!", `Notified ${json.sent ?? 0} device${json.sent !== 1 ? "s" : ""}.`);
+      if (error) throw error;
+      Alert.alert("Notification Sent!", `Notified ${data?.sent ?? 0} device${data?.sent !== 1 ? "s" : ""}.`);
     } catch (err: unknown) {
       Alert.alert("Send Failed", err instanceof Error ? err.message : "Unknown error");
     } finally {

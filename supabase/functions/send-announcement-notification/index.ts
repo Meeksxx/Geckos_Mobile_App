@@ -1,6 +1,6 @@
 // Supabase Edge Function — send-announcement-notification
 // Sends an Expo push notification to all registered device tokens.
-// Requires a valid staff session (Authorization: Bearer <access_token>).
+// Called via supabase.functions.invoke() — auth token injected automatically.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -8,19 +8,10 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-
-const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-async function supabaseGet(path: string): Promise<Response> {
-  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      "apikey": SERVICE_ROLE_KEY,
-      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-  });
-}
+const EXPO_PUSH_URL   = "https://exp.host/--/api/v2/push/send";
+const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY        = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -30,52 +21,46 @@ Deno.serve(async (req: Request) => {
   try {
     console.log("[notify] request received");
 
-    // ── Authenticate caller ──────────────────────────────────────────────────
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      console.error("[notify] missing auth header");
+    // ── Verify caller is a staff user ────────────────────────────────────────
+    const authHeader = req.headers.get("authorization") ?? "";
+    const callerToken = authHeader.replace(/^Bearer\s+/i, "");
+
+    if (!callerToken) {
+      console.error("[notify] no token");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...CORS, "Content-Type": "application/json" } },
       );
     }
 
-    const callerToken = authHeader.replace("Bearer ", "");
-
-    // Verify token via Supabase Auth REST API
+    // Get user from token
     const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        "apikey": SERVICE_ROLE_KEY,
-        "Authorization": `Bearer ${callerToken}`,
-      },
+      headers: { "apikey": ANON_KEY, "Authorization": `Bearer ${callerToken}` },
     });
-
     if (!userRes.ok) {
-      console.error("[notify] auth failed, status:", userRes.status);
+      console.error("[notify] auth failed:", userRes.status);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...CORS, "Content-Type": "application/json" } },
       );
     }
+    const { id: userId } = await userRes.json();
+    console.log("[notify] user:", userId);
 
-    const userData = await userRes.json();
-    const userId: string = userData?.id;
-    console.log("[notify] user authenticated:", userId);
-
-    // ── Check staff access ───────────────────────────────────────────────────
-    const staffRes = await supabaseGet(
-      `staff_users?user_id=eq.${userId}&select=user_id&limit=1`,
+    // Check staff_users table
+    const staffRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/staff_users?user_id=eq.${userId}&select=user_id&limit=1`,
+      { headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` } },
     );
     const staffRows = await staffRes.json();
     if (!Array.isArray(staffRows) || staffRows.length === 0) {
-      console.error("[notify] not a staff user:", userId);
+      console.error("[notify] not staff:", userId);
       return new Response(
-        JSON.stringify({ error: "Forbidden: staff access required" }),
+        JSON.stringify({ error: "Forbidden" }),
         { status: 403, headers: { ...CORS, "Content-Type": "application/json" } },
       );
     }
-
-    console.log("[notify] staff check passed");
+    console.log("[notify] staff verified");
 
     // ── Parse body ───────────────────────────────────────────────────────────
     const { title, body } = await req.json() as { title: string; body?: string };
@@ -86,14 +71,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Fetch all push tokens ────────────────────────────────────────────────
-    const tokensRes = await supabaseGet("push_tokens?select=token");
+    // ── Fetch push tokens ────────────────────────────────────────────────────
+    const tokensRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/push_tokens?select=token`,
+      { headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` } },
+    );
     const tokenRows = await tokensRes.json();
 
     if (!Array.isArray(tokenRows) || tokenRows.length === 0) {
-      console.log("[notify] no registered devices");
+      console.log("[notify] no devices registered");
       return new Response(
-        JSON.stringify({ sent: 0, message: "No registered devices." }),
+        JSON.stringify({ sent: 0 }),
         { headers: { ...CORS, "Content-Type": "application/json" } },
       );
     }
@@ -101,18 +89,13 @@ Deno.serve(async (req: Request) => {
     const tokens: string[] = tokenRows.map((r: { token: string }) => r.token);
     console.log("[notify] sending to", tokens.length, "device(s)");
 
-    // ── Send to Expo Push API in batches of 100 ──────────────────────────────
-    const BATCH_SIZE = 100;
+    // ── Send via Expo Push API ───────────────────────────────────────────────
+    const BATCH = 100;
     let sent = 0;
 
-    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
-      const batch = tokens.slice(i, i + BATCH_SIZE);
-      const messages = batch.map((to) => ({
-        to,
-        title,
-        body: body ?? "",
-        sound: "default",
-        channelId: "default",
+    for (let i = 0; i < tokens.length; i += BATCH) {
+      const messages = tokens.slice(i, i + BATCH).map((to) => ({
+        to, title, body: body ?? "", sound: "default", channelId: "default",
       }));
 
       const expoRes = await fetch(EXPO_PUSH_URL, {
@@ -122,8 +105,8 @@ Deno.serve(async (req: Request) => {
       });
 
       const expoJson = await expoRes.json().catch(() => null);
-      console.log("[notify] expo response:", JSON.stringify(expoJson));
-      if (expoRes.ok) sent += batch.length;
+      console.log("[notify] expo:", JSON.stringify(expoJson));
+      if (expoRes.ok) sent += messages.length;
     }
 
     console.log("[notify] done, sent:", sent);
@@ -132,10 +115,10 @@ Deno.serve(async (req: Request) => {
       { headers: { ...CORS, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[notify] unhandled error:", message);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[notify] error:", msg);
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: msg }),
       { status: 500, headers: { ...CORS, "Content-Type": "application/json" } },
     );
   }
