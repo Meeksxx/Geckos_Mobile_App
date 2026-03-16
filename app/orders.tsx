@@ -123,12 +123,17 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
           const active = idx === currentIdx;
           return (
             <View key={step.key} style={styles.miniStep}>
+              {/* Left half-line connecting from previous step */}
+              {idx > 0 && (
+                <View style={[styles.miniLineLeft, idx <= currentIdx && styles.miniLineDone]} />
+              )}
+              {/* Right half-line connecting to next step */}
+              {idx < STATUS_STEPS.length - 1 && (
+                <View style={[styles.miniLineRight, idx < currentIdx && styles.miniLineDone]} />
+              )}
               <View style={[styles.miniDot, done && styles.miniDotDone, active && styles.miniDotActive]}>
                 <Ionicons name={step.icon} size={12} color={done ? "#fff" : GeckosColors.mutedText} />
               </View>
-              {idx < STATUS_STEPS.length - 1 && (
-                <View style={[styles.miniLine, idx < currentIdx && styles.miniLineDone]} />
-              )}
               <GeckosText style={[styles.miniLabel, done && styles.miniLabelDone, active && styles.miniLabelActive]}>
                 {step.label}
               </GeckosText>
@@ -452,7 +457,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     marginTop: 4,
-    gap: 0,
   },
   miniStep: {
     flex: 1,
@@ -476,11 +480,22 @@ const styles = StyleSheet.create({
   miniDotActive: {
     borderColor: GeckosColors.geckoGreen,
   },
-  miniLine: {
+  // Left half-line: left edge → center of dot (covers gap from previous step)
+  miniLineLeft: {
     position: "absolute",
-    top: 12,
+    top: 11,
+    left: 0,
+    right: "50%",
+    height: 1.5,
+    backgroundColor: GeckosColors.border,
+    zIndex: -1,
+  },
+  // Right half-line: center of dot → right edge (covers gap to next step)
+  miniLineRight: {
+    position: "absolute",
+    top: 11,
     left: "50%",
-    right: "-50%",
+    right: 0,
     height: 1.5,
     backgroundColor: GeckosColors.border,
     zIndex: -1,

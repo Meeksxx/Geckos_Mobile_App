@@ -128,6 +128,20 @@ function isWithinDayRange(orderCreatedAt: string | null, day: KitchenDay | null)
   return orderTime >= openTime && orderTime < closeTime;
 }
 
+// When using the today-fallback view (day closed, live view), show ALL orders
+// from today in CT — not just orders within the closed session's time window.
+function filterForView(orderList: KitchenOrder[], day: KitchenDay | null, isFallback: boolean): KitchenOrder[] {
+  if (!day) return [];
+  if (isFallback) {
+    const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago" });
+    return orderList.filter((order) => {
+      if (!order.created_at) return false;
+      return new Date(order.created_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" }) === todayStr;
+    });
+  }
+  return orderList.filter((order) => isWithinDayRange(order.created_at, day));
+}
+
 function getStatusLabel(status: OrderStatus | null) {
   if (status === "accepted") return "Accepted";
   if (status === "preparing") return "Preparing";
@@ -592,22 +606,6 @@ export default function KitchenScreen() {
     }).length;
   }, [openDay, orders]);
 
-  // When using the today-fallback view (day closed, live view), show ALL orders
-  // from today in CT — not just orders within the closed session's time window.
-  // This prevents orders from vanishing if they were placed after the session
-  // was accidentally closed early by the auto-scheduler.
-  function filterForView(orderList: KitchenOrder[], day: KitchenDay | null, isFallback: boolean): KitchenOrder[] {
-    if (!day) return [];
-    if (isFallback) {
-      const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago" });
-      return orderList.filter((order) => {
-        if (!order.created_at) return false;
-        return new Date(order.created_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" }) === todayStr;
-      });
-    }
-    return orderList.filter((order) => isWithinDayRange(order.created_at, day));
-  }
-
   const usingFallback = !showHistory && !openDay && selectedDay === todayFallbackDay && !!todayFallbackDay;
 
   const visibleOrders = useMemo(() => {
@@ -632,7 +630,6 @@ export default function KitchenScreen() {
     }
     // Oldest first in live view (FIFO queue)
     return source.sort((a, b) => toTimeMs(a.created_at) - toTimeMs(b.created_at));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderView, orders, selectedDay, usingFallback, showHistory, selectedHistoryDay]);
 
   const counts = useMemo(() => {
@@ -655,7 +652,6 @@ export default function KitchenScreen() {
       if (COMPLETED_STATUSES.includes(status)) completed += 1;
     }
     return { active, completed, total: countSource.length };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, selectedDay, usingFallback, showHistory, selectedHistoryDay]);
 
   const handleOpenDay = useCallback(async () => {
