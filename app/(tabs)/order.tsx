@@ -116,6 +116,13 @@ function EmptyCart() {
         <Ionicons name="restaurant-outline" size={20} color={GeckosColors.background} />
         <GeckosText style={styles.browseButtonText}>Browse Menu</GeckosText>
       </Pressable>
+      <Pressable
+        onPress={() => router.push("/orders" as any)}
+        style={({ pressed }) => [styles.historyButton, pressed && styles.buttonPressed]}
+      >
+        <Ionicons name="receipt-outline" size={18} color={GeckosColors.geckoGreen} />
+        <GeckosText style={styles.historyButtonText}>View Order History</GeckosText>
+      </Pressable>
     </View>
   );
 }
@@ -391,7 +398,16 @@ export default function OrderScreen() {
               {notAcceptingBanner}
 
             {/* Header */}
-            <GeckosText style={styles.screenTitle}>Your Order</GeckosText>
+            <View style={styles.screenTitleRow}>
+              <GeckosText style={styles.screenTitle}>Your Order</GeckosText>
+              <Pressable
+                onPress={() => router.push("/orders" as any)}
+                style={({ pressed }) => [styles.historyLink, pressed && styles.buttonPressed]}
+              >
+                <Ionicons name="receipt-outline" size={15} color={GeckosColors.geckoGreen} />
+                <GeckosText style={styles.historyLinkText}>History</GeckosText>
+              </Pressable>
+            </View>
 
             {/* Cart items */}
             <View style={styles.cartList}>
@@ -623,11 +639,50 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 16 },
 
+  screenTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
   screenTitle: {
     fontSize: 28,
     fontWeight: "900",
     color: GeckosColors.text,
-    marginBottom: 20,
+  },
+  historyLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: "rgba(74, 222, 128, 0.06)",
+  },
+  historyLinkText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: GeckosColors.geckoGreen,
+  },
+  historyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: "rgba(74, 222, 128, 0.06)",
+  },
+  historyButtonText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: GeckosColors.geckoGreen,
   },
 
   // Cart items

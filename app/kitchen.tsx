@@ -611,23 +611,41 @@ export default function KitchenScreen() {
   const usingFallback = !showHistory && !openDay && selectedDay === todayFallbackDay && !!todayFallbackDay;
 
   const visibleOrders = useMemo(() => {
+    let source: KitchenOrder[];
+
+    if (showHistory) {
+      // History mode: no day selected → show ALL loaded orders for dispute resolution
+      source = selectedHistoryDay
+        ? orders.filter((order) => isWithinDayRange(order.created_at, selectedHistoryDay))
+        : [...orders];
+      if (orderView === "active") {
+        source = source.filter((order) => ACTIVE_STATUSES.includes((order.status ?? "new") as OrderStatus));
+      }
+      // Most recent first in history
+      return source.sort((a, b) => toTimeMs(b.created_at) - toTimeMs(a.created_at));
+    }
+
     if (!selectedDay) return [];
-    let source = filterForView(orders, selectedDay, usingFallback);
+    source = filterForView(orders, selectedDay, usingFallback);
     if (orderView === "active") {
       source = source.filter((order) => ACTIVE_STATUSES.includes((order.status ?? "new") as OrderStatus));
     }
-
-    return source.sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return aTime - bTime;
-    });
+    // Oldest first in live view (FIFO queue)
+    return source.sort((a, b) => toTimeMs(a.created_at) - toTimeMs(b.created_at));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderView, orders, selectedDay, usingFallback]);
+  }, [orderView, orders, selectedDay, usingFallback, showHistory, selectedHistoryDay]);
 
   const counts = useMemo(() => {
-    if (!selectedDay) return { active: 0, completed: 0, total: 0 };
-    const countSource = filterForView(orders, selectedDay, usingFallback);
+    let countSource: KitchenOrder[];
+    if (showHistory) {
+      countSource = selectedHistoryDay
+        ? orders.filter((order) => isWithinDayRange(order.created_at, selectedHistoryDay))
+        : orders;
+    } else if (!selectedDay) {
+      return { active: 0, completed: 0, total: 0 };
+    } else {
+      countSource = filterForView(orders, selectedDay, usingFallback);
+    }
 
     let active = 0;
     let completed = 0;
@@ -638,7 +656,7 @@ export default function KitchenScreen() {
     }
     return { active, completed, total: countSource.length };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, selectedDay, usingFallback]);
+  }, [orders, selectedDay, usingFallback, showHistory, selectedHistoryDay]);
 
   const handleOpenDay = useCallback(async () => {
     if (openDay) return;
@@ -801,16 +819,13 @@ export default function KitchenScreen() {
     if (!showHistory) {
       setShowHistory(true);
       setOrderView("all");
-      if (!historyDayId) {
-        const latestClosed = closedDays[0]?.id ?? null;
-        setHistoryDayId(latestClosed);
-      }
+      // Default to null = show ALL orders (no day filter)
       return;
     }
 
     setShowHistory(false);
     setOrderView("active");
-  }, [closedDays, historyDayId, showHistory]);
+  }, [showHistory]);
 
   const handleDeleteDay = useCallback(async (day: KitchenDay) => {
     const performDelete = async () => {
@@ -984,7 +999,7 @@ export default function KitchenScreen() {
             <GeckosText style={styles.title}>Kitchen Dashboard</GeckosText>
             <GeckosText style={styles.subtitle}>
               {showHistory
-                ? (selectedHistoryDay ? `${selectedHistoryDay.label} (History)` : "History")
+                ? (selectedHistoryDay ? `${selectedHistoryDay.label} (History)` : "All Orders")
                 : openDay
                   ? `${openDay.label} (Open)${manualOverride ? " · Manual" : ""}`
                   : todayFallbackDay
@@ -1038,6 +1053,17 @@ export default function KitchenScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.historyDaysRow}
               >
+                {/* "All Orders" chip — no day filter, for dispute resolution */}
+                <View style={[styles.historyDayChip, !selectedHistoryDay ? styles.historyDayChipActive : null]}>
+                  <Pressable
+                    onPress={() => setHistoryDayId(null)}
+                    style={({ pressed }) => pressed ? styles.buttonPressed : null}
+                  >
+                    <GeckosText style={[styles.historyDayChipText, !selectedHistoryDay ? styles.historyDayChipTextActive : null]}>
+                      All Orders
+                    </GeckosText>
+                  </Pressable>
+                </View>
                 {closedDays.map((day) => {
                   const selected = day.id === selectedHistoryDay?.id;
                   return (
