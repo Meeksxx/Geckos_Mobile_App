@@ -407,9 +407,15 @@ export default function KitchenScreen() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const autoAcceptedRef = useRef<Set<string>>(new Set());
   const [ordersPaused, setOrdersPaused] = useState(false);
+  const [manualOverride, setManualOverride] = useState(false);
   // Mutable ref keeps latest volatile values accessible inside the schedule interval
   // without causing the interval to restart on every render.
-  const scheduleRef = useRef({ openDay: null as KitchenDay | null, ordersPaused: false, isStaff: false });
+  const scheduleRef = useRef({
+    openDay: null as KitchenDay | null,
+    ordersPaused: false,
+    isStaff: false,
+    manualOverride: false,
+  });
 
   const checkStaffAccess = useCallback(async (currentSession: Session | null) => {
     setAuthError(null);
@@ -493,10 +499,11 @@ export default function KitchenScreen() {
   const fetchSettings = useCallback(async () => {
     const { data } = await supabase
       .from("restaurant_settings")
-      .select("orders_paused")
+      .select("orders_paused, manual_override")
       .eq("id", true)
       .maybeSingle();
     setOrdersPaused(data?.orders_paused ?? false);
+    setManualOverride(data?.manual_override ?? false);
   }, []);
 
   const runRetentionSweep = useCallback(async () => {
@@ -563,7 +570,19 @@ export default function KitchenScreen() {
     () => closedDays.find((day) => day.id === historyDayId) ?? null,
     [closedDays, historyDayId]
   );
-  const selectedDay = showHistory ? selectedHistoryDay : openDay;
+
+  // When no day is currently open, fall back to the most recently closed session
+  // from today (CT) so orders placed during that session remain visible.
+  const todayFallbackDay = useMemo(() => {
+    if (openDay) return null;
+    const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago" });
+    return closedDays.find((d) => {
+      const dStr = new Date(d.opened_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" });
+      return dStr === todayStr;
+    }) ?? null;
+  }, [openDay, closedDays]);
+
+  const selectedDay = showHistory ? selectedHistoryDay : (openDay ?? todayFallbackDay);
   const openDayActiveCount = useMemo(() => {
     if (!openDay) return 0;
     return orders.filter((order) => {
@@ -675,26 +694,36 @@ export default function KitchenScreen() {
   const handleToggleOrders = useCallback(async (turnOn: boolean) => {
     setDayActionBusy(true);
     if (turnOn) {
-      // Turn on: clear pause flag and open a new day
-      await supabase.from("restaurant_settings").update({ orders_paused: false }).eq("id", true);
+      // Turn on manually: mark manual_override so scheduler won't auto-close this session
+      await supabase
+        .from("restaurant_settings")
+        .update({ orders_paused: false, manual_override: true })
+        .eq("id", true);
       setOrdersPaused(false);
-      const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
-      const { data: dayData, error: dayError } = await supabase
-        .from("kitchen_days")
-        .insert({ label: dayLabel })
-        .select("id, label, opened_at, closed_at")
-        .single();
-      if (!dayError && dayData) setDays((prev) => [dayData as KitchenDay, ...prev]);
+      setManualOverride(true);
+      if (!openDay) {
+        const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
+        const { data: dayData, error: dayError } = await supabase
+          .from("kitchen_days")
+          .insert({ label: dayLabel })
+          .select("id, label, opened_at, closed_at")
+          .single();
+        if (!dayError && dayData) setDays((prev) => [dayData as KitchenDay, ...prev]);
+      }
     } else {
-      // Turn off: close the open day and set pause flag
+      // Turn off: close the open day, clear pause + manual flags
       if (openDay) {
         await supabase
           .from("kitchen_days")
           .update({ closed_at: new Date().toISOString() })
           .eq("id", openDay.id);
       }
-      await supabase.from("restaurant_settings").update({ orders_paused: true }).eq("id", true);
+      await supabase
+        .from("restaurant_settings")
+        .update({ orders_paused: true, manual_override: false })
+        .eq("id", true);
       setOrdersPaused(true);
+      setManualOverride(false);
     }
     await fetchDays();
     setDayActionBusy(false);
@@ -704,15 +733,21 @@ export default function KitchenScreen() {
   scheduleRef.current.openDay = openDay;
   scheduleRef.current.ordersPaused = ordersPaused;
   scheduleRef.current.isStaff = isStaff;
+  scheduleRef.current.manualOverride = manualOverride;
 
   useEffect(() => {
     const runSchedule = async () => {
-      const { openDay: od, ordersPaused: paused, isStaff: staff } = scheduleRef.current;
+      const { openDay: od, ordersPaused: paused, isStaff: staff, manualOverride: manual } = scheduleRef.current;
       if (!staff) return;
       const withinHours = isWithinBusinessHours();
 
       if (withinHours && !od && !paused) {
-        // Auto-open when restaurant hours begin
+        // Auto-open when restaurant hours begin; clear any stale manual override
+        await supabase
+          .from("restaurant_settings")
+          .update({ orders_paused: false, manual_override: false })
+          .eq("id", true);
+        setManualOverride(false);
         const dayLabel = new Date().toLocaleDateString([], { month: "short", day: "numeric" });
         const { data, error } = await supabase
           .from("kitchen_days")
@@ -723,11 +758,16 @@ export default function KitchenScreen() {
           setDays((prev) => [data as KitchenDay, ...prev]);
           void fetchDays();
         }
-      } else if (!withinHours && od) {
-        // Auto-close and reset pause flag so tomorrow's open fires correctly
+      } else if (!withinHours && od && !manual) {
+        // Auto-close ONLY if staff did not manually open this session.
+        // If manual_override is true, the scheduler leaves it alone.
         await supabase.from("kitchen_days").update({ closed_at: new Date().toISOString() }).eq("id", od.id);
-        await supabase.from("restaurant_settings").update({ orders_paused: false }).eq("id", true);
+        await supabase
+          .from("restaurant_settings")
+          .update({ orders_paused: false, manual_override: false })
+          .eq("id", true);
         setOrdersPaused(false);
+        setManualOverride(false);
         void fetchDays();
       }
     };
@@ -925,7 +965,11 @@ export default function KitchenScreen() {
             <GeckosText style={styles.subtitle}>
               {showHistory
                 ? (selectedHistoryDay ? `${selectedHistoryDay.label} (History)` : "History")
-                : (openDay ? `${openDay.label} (Open)` : "No open day")}
+                : openDay
+                  ? `${openDay.label} (Open)${manualOverride ? " · Manual" : ""}`
+                  : todayFallbackDay
+                    ? `${todayFallbackDay.label} (Closed — Today's Orders)`
+                    : "No open day"}
             </GeckosText>
           </View>
           <View style={styles.headerActions}>
@@ -1012,7 +1056,9 @@ export default function KitchenScreen() {
                     </GeckosText>
                     <GeckosText style={styles.ordersToggleSub}>
                       {acceptingOrders
-                        ? "Tap to stop taking orders"
+                        ? manualOverride
+                          ? "Manually opened · Auto-schedule paused"
+                          : "Tap to stop taking orders"
                         : isWithinBusinessHours()
                           ? "Auto-opens during business hours"
                           : "Closed · Opens at 11 AM"}
