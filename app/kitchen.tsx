@@ -592,9 +592,27 @@ export default function KitchenScreen() {
     }).length;
   }, [openDay, orders]);
 
+  // When using the today-fallback view (day closed, live view), show ALL orders
+  // from today in CT — not just orders within the closed session's time window.
+  // This prevents orders from vanishing if they were placed after the session
+  // was accidentally closed early by the auto-scheduler.
+  function filterForView(orderList: KitchenOrder[], day: KitchenDay | null, isFallback: boolean): KitchenOrder[] {
+    if (!day) return [];
+    if (isFallback) {
+      const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago" });
+      return orderList.filter((order) => {
+        if (!order.created_at) return false;
+        return new Date(order.created_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" }) === todayStr;
+      });
+    }
+    return orderList.filter((order) => isWithinDayRange(order.created_at, day));
+  }
+
+  const usingFallback = !showHistory && !openDay && selectedDay === todayFallbackDay && !!todayFallbackDay;
+
   const visibleOrders = useMemo(() => {
     if (!selectedDay) return [];
-    let source = orders.filter((order) => isWithinDayRange(order.created_at, selectedDay));
+    let source = filterForView(orders, selectedDay, usingFallback);
     if (orderView === "active") {
       source = source.filter((order) => ACTIVE_STATUSES.includes((order.status ?? "new") as OrderStatus));
     }
@@ -604,11 +622,12 @@ export default function KitchenScreen() {
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
       return aTime - bTime;
     });
-  }, [orderView, orders, selectedDay]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderView, orders, selectedDay, usingFallback]);
 
   const counts = useMemo(() => {
     if (!selectedDay) return { active: 0, completed: 0, total: 0 };
-    const countSource = orders.filter((order) => isWithinDayRange(order.created_at, selectedDay));
+    const countSource = filterForView(orders, selectedDay, usingFallback);
 
     let active = 0;
     let completed = 0;
@@ -618,7 +637,8 @@ export default function KitchenScreen() {
       if (COMPLETED_STATUSES.includes(status)) completed += 1;
     }
     return { active, completed, total: countSource.length };
-  }, [orders, selectedDay]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, selectedDay, usingFallback]);
 
   const handleOpenDay = useCallback(async () => {
     if (openDay) return;
