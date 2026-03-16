@@ -260,28 +260,30 @@ type AppSpecial = {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const headerBgHeight = insets.top + HEADER_BAR_HEIGHT;
-  const { session, isLoggedIn } = useAuth();
+  const { session, isLoggedIn, profile } = useAuth();
   const { itemCount } = useCart();
   const { categories } = useMenu();
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
   const [activeSpecial, setActiveSpecial] = useState<AppSpecial | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   const fetchPoints = useCallback(async () => {
-    if (!session?.user?.id) { setTotalPoints(null); setDisplayName(null); return; }
-    const [{ data: pts }, { data: profile }] = await Promise.all([
-      supabase.from("customer_points").select("total_points").eq("user_id", session.user.id).maybeSingle(),
-      supabase.from("customer_profiles").select("display_name").eq("user_id", session.user.id).maybeSingle(),
-    ]);
+    if (!session?.user?.id) { setTotalPoints(null); return; }
+    const { data: pts } = await supabase
+      .from("customer_points")
+      .select("total_points")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
     setTotalPoints(pts?.total_points ?? 0);
-    setDisplayName(profile?.display_name ?? null);
   }, [session?.user?.id]);
 
-  useEffect(() => { fetchPoints(); }, [fetchPoints]);
+  useEffect(() => {
+    if (!isLoggedIn) { setTotalPoints(null); return; }
+    void fetchPoints();
+  }, [fetchPoints, isLoggedIn]);
 
   useEffect(() => {
     supabase
@@ -362,7 +364,7 @@ export default function HomeScreen() {
                 <>
                   <GeckosText style={styles.heroGreetingLine}>Hey,</GeckosText>
                   <GeckosText style={styles.heroGreetingName}>
-                    {(displayName?.split(/\s+/)[0] ?? getFirstName(session)) ?? "there"}
+                    {(profile?.display_name?.split(/\s+/)[0] ?? getFirstName(session)) ?? "there"}
                   </GeckosText>
                   {totalPoints !== null && (
                     <View style={styles.heroPointsBadge}>
