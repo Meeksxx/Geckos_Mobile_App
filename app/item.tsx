@@ -2,6 +2,9 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -129,7 +132,9 @@ export default function ItemModal() {
       : item.name;
 
   const imageMap = IMAGE_MAP_BY_CATEGORY[item.categoryId];
-  const image = imageMap?.[item.id];
+  const remoteUri = item.imageUrl ?? null;
+  const localAsset = imageMap?.[item.id];
+  const image = remoteUri ? { uri: remoteUri } : localAsset;
   const fallbackPrice = item.price ?? parsedVariants[0]?.price ?? 0;
   const variant = variants[selectedVariantIdx];
   const baseUnitPrice = variant ? variant.price : fallbackPrice;
@@ -229,10 +234,15 @@ export default function ItemModal() {
 
   return (
     <AppContainer>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Pressable
           onPress={() => router.back()}
@@ -429,7 +439,29 @@ export default function ItemModal() {
             </Pressable>
             <GeckosText style={styles.qtyText}>{quantity}</GeckosText>
             <Pressable
-              onPress={() => setQuantity((q) => q + 1)}
+              onPress={() => {
+                if (quantity >= 20) {
+                  Alert.alert(
+                    "Large Order?",
+                    "For orders of more than 20, please call us and we'll take care of you!",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Call Now",
+                        onPress: () => {
+                          if (Platform.OS === "ios" && Platform.isPad) {
+                            Alert.alert("Call Gecko's", "580-564-9599", [{ text: "OK" }]);
+                          } else {
+                            Linking.openURL("tel:5805649599");
+                          }
+                        },
+                      },
+                    ]
+                  );
+                } else {
+                  setQuantity((q) => q + 1);
+                }
+              }}
               style={({ pressed }) => [styles.qtyBtn, pressed && styles.pressed]}
             >
               <Ionicons name="add" size={22} color={GeckosColors.text} />
@@ -447,6 +479,7 @@ export default function ItemModal() {
           <GeckosText style={styles.addButtonText}>Add to Cart - {money(totalPrice)}</GeckosText>
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </AppContainer>
   );
 }
@@ -477,6 +510,7 @@ const styles = StyleSheet.create({
     color: GeckosColors.text,
   },
 
+  flex: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 16 },
 

@@ -27,7 +27,6 @@ import { GeckosColors } from "@/src/theme/colors";
 
 /** Header sizing (same approach as menu.tsx) */
 const HEADER_BAR_HEIGHT = 44; // pinch here (40–52)
-const HEADER_CONTENT_TOP_PAD = 1; // move logo a hair
 const LIST_TOP_GAP = 0; // content starts below the transparent header
 
 const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
@@ -132,7 +131,7 @@ function ItemRow({ item, categoryId }: { item: MenuItem; categoryId: string }) {
             {image && !imgError ? (
               <Image
                 source={image}
-                style={styles.thumb}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
                 onError={() => setImgError(true)}
               />
@@ -210,12 +209,7 @@ export default function CategoryScreen() {
           ),
 
           headerTitle: () => (
-            <View
-              style={[
-                styles.headerTitleWrap,
-                { paddingTop: HEADER_CONTENT_TOP_PAD },
-              ]}
-            >
+            <View style={styles.headerTitleWrap}>
               <Image
                 source={require("../../assets/images/logo/Geckos_full_logo_nobackgroundfinal.png")}
                 style={styles.headerLogo}
@@ -287,6 +281,7 @@ const styles = StyleSheet.create({
     borderBottomColor: GeckosColors.border,
   },
   headerTitleWrap: {
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -295,8 +290,10 @@ const styles = StyleSheet.create({
     width: 150,
   },
   backBtn: {
+    height: 36,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
   backText: {
     color: GeckosColors.text,
@@ -362,12 +359,14 @@ const styles = StyleSheet.create({
 
   mediaWrap: {
     width: THUMB_WIDTH,
-    backgroundColor: "#1B241E",
     alignSelf: "stretch",
+    minHeight: ROW_HEIGHT,
+    backgroundColor: "#1B241E",
+    overflow: "hidden",
   },
   thumb: {
     width: THUMB_WIDTH,
-    flex: 1,
+    height: ROW_HEIGHT,
   },
   missingThumb: {
     width: THUMB_WIDTH,

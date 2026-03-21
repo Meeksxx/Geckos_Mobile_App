@@ -36,37 +36,60 @@ function CartItemRow({
   onRemove: () => void;
   onUpdateQty: (qty: number) => void;
 }) {
+  const handleRemove = () => {
+    Alert.alert(
+      "Remove item?",
+      `Remove "${item.name}" from your order?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: onRemove },
+      ]
+    );
+  };
+
   return (
     <View style={styles.cartItem}>
-      <View style={styles.cartItemInfo}>
-        <GeckosText style={styles.cartItemName}>{item.name}</GeckosText>
-        {item.variant ? (
-          <GeckosText style={styles.cartItemVariant}>{item.variant}</GeckosText>
-        ) : null}
-        {(item.selectedAddOns ?? []).map((addOn) => (
-          <GeckosText key={addOn.name} style={styles.cartItemDetail}>
-            + {addOn.name}
-            {addOn.price > 0 ? ` ($${addOn.price.toFixed(2)})` : ""}
-          </GeckosText>
-        ))}
-        {(item.lunchChoices ?? []).length > 0
-          ? (item.lunchChoices ?? []).map((choice, idx) => {
-              const sauce = (item.lunchSauces ?? [])[idx];
-              return (
-                <GeckosText key={`${choice}-${idx}`} style={styles.cartItemDetail}>
-                  {choice}{sauce ? ` (${sauce})` : ""}
-                </GeckosText>
-              );
-            })
-          : null}
-        {item.specialInstructions ? (
-          <GeckosText style={styles.cartItemDetail}>
-            Note: {item.specialInstructions}
-          </GeckosText>
-        ) : null}
+      {/* Top: name/details + trash icon separated at far right */}
+      <View style={styles.cartItemHeader}>
+        <View style={styles.cartItemInfo}>
+          <GeckosText style={styles.cartItemName}>{item.name}</GeckosText>
+          {item.variant ? (
+            <GeckosText style={styles.cartItemVariant}>{item.variant}</GeckosText>
+          ) : null}
+          {(item.selectedAddOns ?? []).map((addOn) => (
+            <GeckosText key={addOn.name} style={styles.cartItemDetail}>
+              + {addOn.name}
+              {addOn.price > 0 ? ` ($${addOn.price.toFixed(2)})` : ""}
+            </GeckosText>
+          ))}
+          {(item.lunchChoices ?? []).length > 0
+            ? (item.lunchChoices ?? []).map((choice, idx) => {
+                const sauce = (item.lunchSauces ?? [])[idx];
+                return (
+                  <GeckosText key={`${choice}-${idx}`} style={styles.cartItemDetail}>
+                    {choice}{sauce ? ` (${sauce})` : ""}
+                  </GeckosText>
+                );
+              })
+            : null}
+          {item.specialInstructions ? (
+            <GeckosText style={styles.cartItemDetail}>
+              Note: {item.specialInstructions}
+            </GeckosText>
+          ) : null}
+        </View>
+
+        <Pressable
+          onPress={handleRemove}
+          style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}
+          hitSlop={12}
+        >
+          <Ionicons name="trash-outline" size={18} color={GeckosColors.chiliRed} />
+        </Pressable>
       </View>
 
-      <View style={styles.cartItemActions}>
+      {/* Bottom: qty controls + line price */}
+      <View style={styles.cartItemFooter}>
         <View style={styles.qtyRow}>
           <Pressable
             onPress={() => onUpdateQty(item.quantity - 1)}
@@ -87,14 +110,6 @@ function CartItemRow({
           ${(item.price * item.quantity).toFixed(2)}
         </GeckosText>
       </View>
-
-      <Pressable
-        onPress={onRemove}
-        style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}
-        hitSlop={8}
-      >
-        <Ionicons name="trash-outline" size={18} color={GeckosColors.chiliRed} />
-      </Pressable>
     </View>
   );
 }
@@ -690,18 +705,27 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cartItem: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: GeckosColors.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: GeckosColors.border,
     padding: 12,
-    gap: 12,
+    gap: 10,
+  },
+  cartItemHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
   },
   cartItemInfo: {
     flex: 1,
     minWidth: 0,
+  },
+  cartItemFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
   },
   cartItemName: {
     fontSize: 15,
@@ -721,18 +745,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  cartItemActions: {
-    alignItems: "flex-end",
-    gap: 6,
-  },
   qtyRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   qtyBtn: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     backgroundColor: GeckosColors.background,
     borderWidth: 1,
@@ -744,7 +764,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     color: GeckosColors.text,
-    minWidth: 20,
+    minWidth: 24,
     textAlign: "center",
   },
   linePrice: {

@@ -47,6 +47,7 @@ Deno.serve(async (req: Request) => {
       automatic_payment_methods: { enabled: true },
       application_fee_amount: applicationFeeAmount,
       transfer_data: { destination: CONNECTED_ACCOUNT_ID },
+      statement_descriptor: "GECKOS TEXOMA",
       metadata: {
         customer_name: customerName,
         customer_phone: customerPhone,
