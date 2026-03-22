@@ -16,9 +16,6 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
-# Local tooling
-.claude/
-
 # OS / Editor
 .DS_Store
 Thumbs.db
