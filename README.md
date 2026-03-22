@@ -1,50 +1,105 @@
-# Welcome to your Expo app 👋
+# Gecko's Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A full-stack React Native app for **Gecko's at Lake Texoma**, a real restaurant in Gordonville, Oklahoma. Customers use it to browse the menu, place orders, pay, and track their order in real time. Staff manage the kitchen queue through a built-in kitchen view.
 
-## Get started
+Live on **TestFlight** and actively used by real customers.
 
-1. Install dependencies
+---
 
+## Features
+
+### Customer
+- Browse the full menu by category — items support variants, add-ons, lunch combos, sauces, and special instructions
+- Cart with quantity controls and item removal
+- Checkout with name, phone, and optional pickup time
+- Pay online via Stripe or pay at pickup
+- Real-time order status tracking (New → Accepted → Preparing → Ready → Picked Up) with a live progress timeline
+- Order history with one-tap reorder
+- Rewards points system — earn points per order, redeem for discounts
+- Push notifications when order status changes
+- Home screen announcements and app specials pulled from the database
+
+### Kitchen (Staff)
+- Live incoming order queue powered by Supabase Realtime
+- Accept, update, and complete orders
+- Issue refunds through Stripe
+- Scheduled open/close with manual override
+- Daily order history view
+
+### Account
+- Sign up / sign in / reset password
+- Edit profile (name, phone)
+- Points balance and full transaction history
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native (Expo SDK 54, New Architecture) |
+| Routing | Expo Router (file-based) |
+| Language | TypeScript |
+| Backend | Supabase (Postgres, Auth, Realtime, Edge Functions) |
+| Payments | Stripe (`@stripe/stripe-react-native`) |
+| Push Notifications | Expo Notifications |
+| Build / Deploy | EAS Build, TestFlight |
+
+---
+
+## Architecture
+
+- **Supabase Auth** handles sign-up, sign-in, and session management
+- **Row-level security** ensures customers can only access their own orders and points
+- **Supabase Realtime** powers live order status for both customers and the kitchen view
+- **Edge Functions** handle all Stripe server-side logic:
+  - `create-payment-intent` — creates a PaymentIntent and returns a client secret
+  - `refund-payment` — processes refunds from the kitchen view
+  - `send-announcement-notification` — sends push notifications to all customers
+- **RPCs** handle atomic operations like `redeem_reward` and `is_accepting_orders`
+
+---
+
+## Project Structure
+
+```
+app/
+  (tabs)/         # Bottom tab screens (Home, Menu, Order, Rewards, Account)
+  kitchen.tsx     # Staff kitchen management view
+  orders.tsx      # Customer order history
+  checkout.tsx    # Stripe payment flow
+  item.tsx        # Item detail / add to cart
+  auth.tsx        # Sign in / sign up
+
+src/
+  context/        # AuthContext, CartContext
+  components/     # Shared UI components
+  config/         # Rewards config
+  hooks/          # useAppStripe
+  lib/            # Supabase client
+  theme/          # Colors
+
+supabase/
+  functions/      # Edge Functions (Stripe, notifications)
+```
+
+---
+
+## Getting Started
+
+1. Clone the repo and install dependencies:
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Create a `.env.local` file with your own credentials:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+   ```
 
+3. Start the development server:
    ```bash
    npx expo start
    ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
