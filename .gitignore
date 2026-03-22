@@ -16,7 +16,7 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
-# Claude Code
+# Local tooling
 .claude/
 
 # OS / Editor
