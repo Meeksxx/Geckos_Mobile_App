@@ -46,7 +46,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         return [...prev, { ...newItem, quantity: newItem.quantity ?? 1 }];
       });
-      // Show cart toast
       if (toastTimer.current) clearTimeout(toastTimer.current);
       setToastName(newItem.name);
       toastTimer.current = setTimeout(() => setToastName(null), 3500);

@@ -1,4 +1,3 @@
-// app/orders.tsx — Order history for logged-in customers
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -123,11 +122,9 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
           const active = idx === currentIdx;
           return (
             <View key={step.key} style={styles.miniStep}>
-              {/* Left half-line connecting from previous step */}
               {idx > 0 && (
                 <View style={[styles.miniLineLeft, idx <= currentIdx && styles.miniLineDone]} />
               )}
-              {/* Right half-line connecting to next step */}
               {idx < STATUS_STEPS.length - 1 && (
                 <View style={[styles.miniLineRight, idx < currentIdx && styles.miniLineDone]} />
               )}
@@ -210,7 +207,6 @@ function OrderCard({
         />
       </Pressable>
 
-      {/* Reorder button — only for orders that have actual items with prices */}
       {(order.items ?? []).some((i) => i.name && (i.price ?? 0) > 0) && (
         <Pressable
           onPress={() => onReorder(order)}
@@ -232,7 +228,6 @@ export default function OrderHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Track which order IDs have been updated to active so we can move them to top
   const statusOverrides = useRef<Map<string, string>>(new Map());
 
   const fetchOrders = useCallback(async () => {
@@ -256,7 +251,6 @@ export default function OrderHistoryScreen() {
     fetchOrders().finally(() => setLoading(false));
   }, [fetchOrders, isLoggedIn]);
 
-  // When an active order updates status via realtime, sync it to our local list
   const handleStatusChange = useCallback((orderId: string, newStatus: string) => {
     statusOverrides.current.set(orderId, newStatus);
     setOrders((prev) =>
@@ -480,7 +474,6 @@ const styles = StyleSheet.create({
   miniDotActive: {
     borderColor: GeckosColors.geckoGreen,
   },
-  // Left half-line: left edge → center of dot (covers gap from previous step)
   miniLineLeft: {
     position: "absolute",
     top: 11,
@@ -490,7 +483,6 @@ const styles = StyleSheet.create({
     backgroundColor: GeckosColors.border,
     zIndex: -1,
   },
-  // Right half-line: center of dot → right edge (covers gap to next step)
   miniLineRight: {
     position: "absolute",
     top: 11,

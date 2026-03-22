@@ -1,4 +1,3 @@
-// app/checkout.tsx — Payment selection modal
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -106,7 +105,7 @@ export default function CheckoutScreen() {
         return;
       }
 
-      // 1. Get client secret from Edge Function (uses discounted subtotal)
+      // 1. Fetch client secret from Edge Function
       const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
       const res = await fetch(EDGE_URL, {
         method: "POST",
@@ -131,7 +130,7 @@ export default function CheckoutScreen() {
         paymentIntentId: string;
       };
 
-      // 2. Initialize the Stripe payment sheet.
+      // 2. Initialize the Stripe payment sheet
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "Gecko's at Lake Texoma",
         paymentIntentClientSecret: clientSecret,
@@ -140,14 +139,14 @@ export default function CheckoutScreen() {
       });
       if (initError) throw new Error(`Sheet init failed: ${initError.message}`);
 
-      // 3. Present sheet to the user
+      // 3. Present payment sheet
       const { error: payError } = await presentPaymentSheet();
       if (payError) {
         if (payError.code === "Canceled") { setLoading(false); return; }
         throw new Error(payError.message);
       }
 
-      // 4. Payment succeeded — insert order
+      // 4. Insert order record
       const { error: insertError } = await supabase.from("orders").insert(
         buildOrderPayload({
           payment_method: "stripe",

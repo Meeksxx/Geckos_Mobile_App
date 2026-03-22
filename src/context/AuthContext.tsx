@@ -36,7 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(data ?? null);
   }, []);
 
-  // Listen for auth state changes
   useEffect(() => {
     let mounted = true;
 
@@ -73,13 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) return error.message;
       if (!data.user) return "Sign up failed. Please try again.";
 
-      // If signUp didn't return a session, sign in explicitly
+      // Sign in explicitly if signUp didn't return a session.
       if (!data.session) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) return signInError.message;
       }
 
-      // Create profile row (now we have an active session with auth.uid())
+      // Create profile after sign-in so RLS auth.uid() is available.
       const { error: profileError } = await supabase.from("customer_profiles").insert({
         user_id: data.user.id,
         display_name: name.trim(),
@@ -125,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (name: string, phone: string): Promise<string | null> => {
       if (!session?.user?.id) return "Not signed in.";
 
-      // Upsert — handles both new profiles (pre-existing accounts) and updates
       const { error } = await supabase
         .from("customer_profiles")
         .upsert(

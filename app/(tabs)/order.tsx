@@ -162,7 +162,6 @@ function OrderTracker({
   const [status, setStatus] = useState("new");
 
   useEffect(() => {
-    // Fetch initial status — if order no longer exists, clear the tracker
     supabase
       .from("orders")
       .select("status")
@@ -173,7 +172,6 @@ function OrderTracker({
         if (data.status) setStatus(data.status);
       });
 
-    // Subscribe to realtime updates (update + delete)
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
@@ -290,7 +288,6 @@ export default function OrderScreen() {
   const [selectedReward, setSelectedReward] = useState<RewardConfig | null>(null);
 
 
-  // Pre-fill name and phone from profile when user signs in
   useEffect(() => {
     if (profile && !profileLoaded) {
       setCustomerName(profile.display_name);
@@ -299,7 +296,6 @@ export default function OrderScreen() {
     }
   }, [profile, profileLoaded]);
 
-  // Fetch user's points balance so we can show eligible rewards
   useEffect(() => {
     if (!session?.user?.id) { setUserPoints(null); return; }
     supabase
@@ -310,7 +306,6 @@ export default function OrderScreen() {
       .then(({ data }) => setUserPoints(data?.total_points ?? 0));
   }, [session?.user?.id]);
 
-  // Check if restaurant is accepting orders, and keep it live
   useEffect(() => {
     supabase.rpc("is_accepting_orders").then(({ data }) => {
       setAcceptingOrders(data ?? false);
@@ -368,7 +363,6 @@ export default function OrderScreen() {
       Alert.alert("Phone Required", "Please enter a phone number so we can reach you.");
       return;
     }
-    // Order insert + payment handled in checkout.tsx
     router.push({
       pathname: "/checkout",
       params: {

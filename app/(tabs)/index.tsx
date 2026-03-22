@@ -1,4 +1,3 @@
-// app/(tabs)/index.tsx
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -47,8 +46,6 @@ const APPLE_MAPS_URL = `maps://?q=${encodeURIComponent(RESTAURANT_NAME)}&ll=${LA
 const GOOGLE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
   `${RESTAURANT_NAME} ${ADDRESS_LINE1} ${ADDRESS_LINE2}`
 )}`;
-
-/* ─────────────────────── no static CATEGORIES — pulled from MenuContext ─────────────────────── */
 
 /* ─────────────────────── HELPERS ─────────────────────── */
 

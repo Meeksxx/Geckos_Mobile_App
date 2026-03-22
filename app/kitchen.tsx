@@ -128,8 +128,7 @@ function isWithinDayRange(orderCreatedAt: string | null, day: KitchenDay | null)
   return orderTime >= openTime && orderTime < closeTime;
 }
 
-// When using the today-fallback view (day closed, live view), show ALL orders
-// from today in CT — not just orders within the closed session's time window.
+// When no session is open, show all orders from today (CT) rather than filtering by session window.
 function filterForView(orderList: KitchenOrder[], day: KitchenDay | null, isFallback: boolean): KitchenOrder[] {
   if (!day) return [];
   if (isFallback) {
@@ -422,8 +421,7 @@ export default function KitchenScreen() {
   const autoAcceptedRef = useRef<Set<string>>(new Set());
   const [ordersPaused, setOrdersPaused] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
-  // Mutable ref keeps latest volatile values accessible inside the schedule interval
-  // without causing the interval to restart on every render.
+  // Keeps scheduler values current without triggering interval restarts.
   const scheduleRef = useRef({
     openDay: null as KitchenDay | null,
     ordersPaused: false,
@@ -585,8 +583,7 @@ export default function KitchenScreen() {
     [closedDays, historyDayId]
   );
 
-  // When no day is currently open, fall back to the most recently closed session
-  // from today (CT) so orders placed during that session remain visible.
+  // Falls back to today's most recent closed session when none is open.
   const todayFallbackDay = useMemo(() => {
     if (openDay) return null;
     const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago" });
@@ -728,7 +725,7 @@ export default function KitchenScreen() {
   const handleToggleOrders = useCallback(async (turnOn: boolean) => {
     setDayActionBusy(true);
     if (turnOn) {
-      // Turn on manually: mark manual_override so scheduler won't auto-close this session
+      // Set manual_override so the scheduler won't close this session automatically.
       await supabase
         .from("restaurant_settings")
         .update({ orders_paused: false, manual_override: true })
@@ -776,7 +773,7 @@ export default function KitchenScreen() {
       const withinHours = isWithinBusinessHours();
 
       if (withinHours && !od && !paused) {
-        // Auto-open when restaurant hours begin; clear any stale manual override
+        // Auto-open at business hours start.
         await supabase
           .from("restaurant_settings")
           .update({ orders_paused: false, manual_override: false })
@@ -793,8 +790,7 @@ export default function KitchenScreen() {
           void fetchDays();
         }
       } else if (!withinHours && od && !manual) {
-        // Auto-close ONLY if staff did not manually open this session.
-        // If manual_override is true, the scheduler leaves it alone.
+        // Skip auto-close if the session was opened manually.
         await supabase.from("kitchen_days").update({ closed_at: new Date().toISOString() }).eq("id", od.id);
         await supabase
           .from("restaurant_settings")
@@ -815,7 +811,6 @@ export default function KitchenScreen() {
     if (!showHistory) {
       setShowHistory(true);
       setOrderView("all");
-      // Default to null = show ALL orders (no day filter)
       return;
     }
 
