@@ -13,7 +13,11 @@ pnpm-debug.log*
 
 # Env
 .env
+.env.local
 .env.*.local
+
+# Claude Code
+.claude/
 
 # OS / Editor
 .DS_Store
