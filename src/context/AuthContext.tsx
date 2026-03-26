@@ -11,12 +11,14 @@ type AuthContextType = {
   session: Session | null;
   profile: CustomerProfile | null;
   isLoggedIn: boolean;
+  isStaff: boolean;
   loading: boolean;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   updateProfile: (name: string, phone: string) => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
+  deleteAccount: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,16 +26,17 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("customer_profiles")
-      .select("display_name, phone")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [{ data: profileData }, { data: staffData }] = await Promise.all([
+      supabase.from("customer_profiles").select("display_name, phone").eq("user_id", userId).maybeSingle(),
+      supabase.from("staff_users").select("user_id").eq("user_id", userId).maybeSingle(),
+    ]);
 
-    setProfile(data ?? null);
+    setProfile(profileData ?? null);
+    setIsStaff(!!staffData);
   }, []);
 
   useEffect(() => {
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setIsStaff(false);
   }, []);
 
   const resetPassword = useCallback(
@@ -119,6 +123,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const deleteAccount = useCallback(async (): Promise<string | null> => {
+    if (!session?.access_token) return "Not signed in.";
+
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+    const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const json = await res.json();
+    if (!res.ok) return json.error ?? "Failed to delete account.";
+
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    return null;
+  }, [session]);
 
   const updateProfile = useCallback(
     async (name: string, phone: string): Promise<string | null> => {
@@ -143,14 +168,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       profile,
       isLoggedIn: !!session?.user,
+      isStaff,
       loading,
       signUp,
       signIn,
       signOut,
       updateProfile,
       resetPassword,
+      deleteAccount,
     }),
-    [session, profile, loading, signUp, signIn, signOut, updateProfile, resetPassword]
+    [session, profile, isStaff, loading, signUp, signIn, signOut, updateProfile, resetPassword, deleteAccount]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

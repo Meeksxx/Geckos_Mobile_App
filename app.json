@@ -18,9 +18,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.zacmeeks.geckos",
       "buildNumber": "2",
+      "minimumOsVersion": "16.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Used by staff to upload photos for menu items, categories, specials, and announcements."
+        "NSPhotoLibraryUsageDescription": "Used to upload photos for menu items, categories, specials, and announcements."
       }
     },
     "android": {
@@ -37,6 +38,7 @@
       "output": "static"
     },
     "plugins": [
+      "./plugins/withPrivacyManifest",
       "expo-router",
       [
         "expo-notifications",
@@ -65,8 +67,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

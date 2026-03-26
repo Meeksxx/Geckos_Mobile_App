@@ -11,6 +11,8 @@ import { MenuProvider } from "@/src/context/MenuContext";
 import StripeWrapper from "@/src/components/StripeWrapper";
 import { usePushNotifications } from "@/src/hooks/usePushNotifications";
 import { CartToast } from "@/src/components/CartToast";
+import { NotificationPrompt } from "@/src/components/NotificationPrompt";
+import { ErrorBoundary } from "@/src/components/ErrorBoundary";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -46,6 +48,7 @@ export default function RootLayout() {
   }, [isKitchenRoute, opacity]);
 
   return (
+    <ErrorBoundary>
     <StripeWrapper>
     <AuthProvider>
     <PushRegistrar />
@@ -58,6 +61,8 @@ export default function RootLayout() {
           <Stack.Screen name="auth" options={{ presentation: "modal" }} />
           <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
           <Stack.Screen name="kitchen" />
+          <Stack.Screen name="content" />
+          <Stack.Screen name="menu-content" />
         </Stack>
 
         {/* Keep status bar consistent with dark theme */}
@@ -65,6 +70,9 @@ export default function RootLayout() {
 
         {/* Cart toast — lives here so it shows on all screens including category */}
         <CartToast />
+
+        {/* First-launch notification permission prompt */}
+        <NotificationPrompt />
 
         {/* In-app launch overlay (shows in Expo Go) */}
         {showLaunch && (
@@ -81,6 +89,7 @@ export default function RootLayout() {
     </MenuProvider>
     </AuthProvider>
     </StripeWrapper>
+    </ErrorBoundary>
   );
 }
 

@@ -188,14 +188,22 @@ function LocationModal({ visible, onClose }: { visible: boolean; onClose: () => 
           </GeckosText>
 
           <View style={styles.mapContainer}>
-            <WebView
-              source={{ uri: MAP_URL }}
-              style={styles.mapWebView}
-              scrollEnabled={false}
-              bounces={false}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-            />
+            {mapError ? (
+              <View style={styles.mapFallback}>
+                <Ionicons name="map-outline" size={28} color={GeckosColors.mutedText} />
+                <GeckosText style={styles.mapFallbackText}>Map unavailable</GeckosText>
+              </View>
+            ) : (
+              <WebView
+                source={{ uri: MAP_URL }}
+                style={styles.mapWebView}
+                scrollEnabled={false}
+                bounces={false}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                onError={() => setMapError(true)}
+              />
+            )}
           </View>
 
           <View style={styles.mapButtonsRow}>
@@ -261,6 +269,7 @@ export default function HomeScreen() {
   const { itemCount } = useCart();
   const { categories } = useMenu();
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
@@ -1034,6 +1043,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: GeckosColors.border,
+  },
+  mapFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: GeckosColors.surface,
+    gap: 8,
+  },
+  mapFallbackText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
   },
   mapWebView: {
     flex: 1,

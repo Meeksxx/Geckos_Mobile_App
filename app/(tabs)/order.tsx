@@ -454,6 +454,10 @@ export default function OrderScreen() {
               </>
             )}
 
+            <GeckosText style={styles.feeNotice}>
+              Tax & fees (processing, service) will be shown at checkout.
+            </GeckosText>
+
             <View style={styles.divider} />
 
             {/* Reward selector — shown only when logged in with eligible rewards */}
@@ -770,6 +774,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   pressed: { opacity: 0.7 },
+
+  feeNotice: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
 
   // Subtotal
   subtotalRow: {

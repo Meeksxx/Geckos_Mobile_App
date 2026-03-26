@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,13 +35,21 @@ function SignedOut() {
       >
         <GeckosText style={styles.primaryButtonText}>Sign In / Sign Up</GeckosText>
       </Pressable>
+
+      <Pressable
+        onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
+        style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+      >
+        <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
+      </Pressable>
     </View>
   );
 }
 
 function SignedIn() {
-  const { profile, signOut, updateProfile } = useAuth();
+  const { profile, signOut, updateProfile, deleteAccount, isStaff } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [name, setName] = useState(profile?.display_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [saving, setSaving] = useState(false);
@@ -65,6 +74,26 @@ function SignedIn() {
       { text: "Cancel", style: "cancel" },
       { text: "Sign Out", style: "destructive", onPress: signOut },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all associated data including order history and rewards points. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            const err = await deleteAccount();
+            setDeleting(false);
+            if (err) Alert.alert("Error", err);
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -153,12 +182,40 @@ function SignedIn() {
         <Ionicons name="chevron-forward" size={16} color={GeckosColors.mutedText} />
       </Pressable>
 
+      {isStaff && (
+        <Pressable
+          onPress={() => router.push("/kitchen" as any)}
+          style={({ pressed }) => [styles.staffButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="restaurant-outline" size={18} color={GeckosColors.geckoGreen} />
+          <GeckosText style={styles.staffButtonText}>Staff Dashboard</GeckosText>
+          <Ionicons name="chevron-forward" size={16} color={GeckosColors.mutedText} />
+        </Pressable>
+      )}
+
       <Pressable
         onPress={handleSignOut}
         style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
       >
         <Ionicons name="log-out-outline" size={20} color={GeckosColors.chiliRed} />
         <GeckosText style={styles.signOutText}>Sign Out</GeckosText>
+      </Pressable>
+
+      <Pressable
+        onPress={handleDeleteAccount}
+        disabled={deleting}
+        style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed, deleting && styles.disabled]}
+      >
+        <GeckosText style={styles.deleteText}>
+          {deleting ? "Deleting..." : "Delete Account"}
+        </GeckosText>
+      </Pressable>
+
+      <Pressable
+        onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
+        style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+      >
+        <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
       </Pressable>
     </ScrollView>
   );
@@ -370,6 +427,26 @@ const styles = StyleSheet.create({
     color: GeckosColors.text,
   },
 
+  // Staff dashboard
+  staffButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: GeckosColors.geckoGreen,
+    backgroundColor: GeckosColors.surface,
+    marginBottom: 12,
+  },
+  staffButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: GeckosColors.geckoGreen,
+  },
+
   // Sign out
   signOutButton: {
     flexDirection: "row",
@@ -385,5 +462,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: GeckosColors.chiliRed,
+  },
+
+  // Privacy policy
+  privacyLink: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  privacyLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    textDecorationLine: "underline",
+  },
+
+  // Delete account
+  deleteButton: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  deleteText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: GeckosColors.mutedText,
+    textDecorationLine: "underline",
   },
 });

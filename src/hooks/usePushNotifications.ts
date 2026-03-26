@@ -22,21 +22,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function registerToken(userId: string | null) {
-  // Physical device required — simulators/emulators can't receive push notifications.
-  if (!Device.isDevice) return;
-
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-
-  if (existing !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== "granted") return;
-
-  // Android needs a notification channel.
+async function saveToken(userId: string | null) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
       name: "Gecko's Announcements",
@@ -54,11 +40,28 @@ async function registerToken(userId: string | null) {
   );
 }
 
+// Silently registers the token if permission was already granted (returning users).
+async function registerIfGranted(userId: string | null) {
+  if (!Device.isDevice) return;
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") return;
+  await saveToken(userId);
+}
+
+// Called when the user taps "Turn On Notifications" in the prompt.
+export async function requestPushPermission(userId: string | null): Promise<boolean> {
+  if (!Device.isDevice) return false;
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") return false;
+  await saveToken(userId);
+  return true;
+}
+
 export function usePushNotifications() {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
 
   useEffect(() => {
-    void registerToken(userId);
+    void registerIfGranted(userId);
   }, [userId]);
 }
