@@ -18,7 +18,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.zacmeeks.geckos",
       "buildNumber": "2",
-      "minimumOsVersion": "16.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Used to upload photos for menu items, categories, specials, and announcements."
@@ -64,7 +63,8 @@
           "merchantIdentifier": "merchant.com.zacmeeks.geckos",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
