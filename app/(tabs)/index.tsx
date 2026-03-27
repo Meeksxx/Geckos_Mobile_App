@@ -163,6 +163,7 @@ function RewardsTeaser({ points }: { points: number | null }) {
 
 function LocationModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
+  const [mapError, setMapError] = useState(false);
 
   const handleCall = () => {
     if (Platform.OS === "ios" && Platform.isPad) {
@@ -269,7 +270,6 @@ export default function HomeScreen() {
   const { itemCount } = useCart();
   const { categories } = useMenu();
   const [locationModalVisible, setLocationModalVisible] = useState(false);
-  const [mapError, setMapError] = useState(false);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean | null>(null);
