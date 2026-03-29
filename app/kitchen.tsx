@@ -896,6 +896,7 @@ export default function KitchenScreen() {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${accessToken}`,
+            "apikey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
           },
           body: JSON.stringify({ paymentIntentId: order.stripe_payment_intent_id }),
         });

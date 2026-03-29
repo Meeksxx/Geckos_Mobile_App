@@ -128,10 +128,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!session?.access_token) return "Not signed in.";
 
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
     const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
         "Content-Type": "application/json",
       },
     });
