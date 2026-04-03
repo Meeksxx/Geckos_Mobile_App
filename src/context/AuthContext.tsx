@@ -125,26 +125,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteAccount = useCallback(async (): Promise<string | null> => {
-    if (!session?.access_token) return "Not signed in.";
+    try {
+      if (!session?.access_token) return "Not signed in.";
 
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-    const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        apikey: supabaseAnonKey,
-        "Content-Type": "application/json",
-      },
-    });
+      // Force a token refresh so the edge function receives a current JWT.
+      const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) return refreshError.message;
 
-    const json = await res.json();
-    if (!res.ok) return json.error ?? "Failed to delete account.";
+      const accessToken = refreshedData.session?.access_token ?? session.access_token;
+      if (!accessToken) return "Not signed in.";
 
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-    return null;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          apikey: supabaseAnonKey,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const json = await res.json().catch(() => ({} as { error?: string; message?: string }));
+      if (!res.ok) {
+        return json.error ?? json.message ?? `Failed to delete account (HTTP ${res.status}).`;
+      }
+
+      await supabase.auth.signOut();
+      setSession(null);
+      setProfile(null);
+      return null;
+    } catch (error: unknown) {
+      return error instanceof Error ? error.message : "Failed to delete account.";
+    }
   }, [session]);
 
   const updateProfile = useCallback(

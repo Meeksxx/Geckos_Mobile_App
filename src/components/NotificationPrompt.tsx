@@ -20,10 +20,11 @@ export function NotificationPrompt() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (!session) return;
     AsyncStorage.getItem(STORAGE_KEY).then((val) => {
       if (!val) setVisible(true);
     });
-  }, []);
+  }, [session]);
 
   const dismiss = async () => {
     await AsyncStorage.setItem(STORAGE_KEY, "true");
@@ -44,11 +45,11 @@ export function NotificationPrompt() {
           </View>
 
           <GeckosText style={styles.title}>
-            Don't miss out on special offers & events!
+            {"Don't miss out on special offers & events!"}
           </GeckosText>
 
           <GeckosText style={styles.body}>
-            Enable notifications to stay up to date on Gecko's specials, events, and announcements.
+            {"Enable notifications to stay up to date on Gecko's specials, events, and announcements."}
           </GeckosText>
 
           <Pressable

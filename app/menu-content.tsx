@@ -1634,7 +1634,7 @@ export default function MenuContentScreen() {
         {specialsLoading ? (
           <ActivityIndicator color={GeckosColors.geckoGreen} />
         ) : specials.length === 0 ? (
-          <GeckosText style={styles.emptyText}>No specials found. Tap "Add Special" to create one.</GeckosText>
+          <GeckosText style={styles.emptyText}>{'No specials found. Tap "Add Special" to create one.'}</GeckosText>
         ) : (
           specials.map((s) => (
             <View key={s.id} style={styles.itemRow}>

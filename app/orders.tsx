@@ -41,30 +41,36 @@ type PastOrder = {
   items: FullOrderItem[] | null;
 };
 
+type CustomerStatus = "new" | "accepted" | "picked_up" | "cancelled";
+
 const ACTIVE_STATUSES = ["new", "accepted", "preparing", "ready"];
 
-const STATUS_STEPS = [
-  { key: "new",       label: "Order Received",   icon: "receipt-outline" as const },
-  { key: "accepted",  label: "Accepted",          icon: "checkmark-circle-outline" as const },
-  { key: "preparing", label: "Preparing",         icon: "flame-outline" as const },
-  { key: "ready",     label: "Ready for Pickup",  icon: "bag-check-outline" as const },
-  { key: "picked_up", label: "Picked Up",         icon: "checkmark-done-outline" as const },
+const CUSTOMER_STATUS_STEPS = [
+  { key: "new",       label: "Order Received", icon: "receipt-outline" as const },
+  { key: "accepted",  label: "In Progress",    icon: "restaurant-outline" as const },
+  { key: "picked_up", label: "Picked Up",      icon: "checkmark-done-outline" as const },
 ];
 
+function normalizeCustomerStatus(status: string | null): CustomerStatus {
+  if (status === "picked_up") return "picked_up";
+  if (status === "cancelled") return "cancelled";
+  if (status === "accepted" || status === "preparing" || status === "ready") return "accepted";
+  return "new";
+}
+
 function getStatusLabel(status: string | null) {
-  if (status === "accepted")  return "Accepted";
-  if (status === "preparing") return "Preparing";
-  if (status === "ready")     return "Ready for Pickup";
-  if (status === "picked_up") return "Completed";
-  if (status === "cancelled") return "Cancelled";
+  const normalized = normalizeCustomerStatus(status);
+  if (normalized === "accepted") return "In Progress";
+  if (normalized === "picked_up") return "Completed";
+  if (normalized === "cancelled") return "Cancelled";
   return "Received";
 }
 
 function getStatusColor(status: string | null) {
-  if (status === "picked_up") return GeckosColors.geckoGreen;
-  if (status === "cancelled") return GeckosColors.chiliRed;
-  if (status === "ready")     return GeckosColors.geckoGreen;
-  if (status === "preparing" || status === "accepted") return "#F59E0B";
+  const normalized = normalizeCustomerStatus(status);
+  if (normalized === "picked_up") return GeckosColors.geckoGreen;
+  if (normalized === "cancelled") return GeckosColors.chiliRed;
+  if (normalized === "accepted") return "#F59E0B";
   return GeckosColors.mutedText;
 }
 
@@ -97,8 +103,9 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
     return () => { supabase.removeChannel(channel); };
   }, [order.id, order.status, onStatusChange]);
 
-  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === liveStatus);
-  const isCancelled = liveStatus === "cancelled";
+  const displayStatus = normalizeCustomerStatus(liveStatus);
+  const currentIdx = CUSTOMER_STATUS_STEPS.findIndex((s) => s.key === displayStatus);
+  const isCancelled = displayStatus === "cancelled";
 
   if (isCancelled) return null;
 
@@ -107,8 +114,8 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
       <View style={styles.activeCardHeader}>
         <View style={styles.pulseDot} />
         <GeckosText style={styles.activeCardTitle}>Order In Progress</GeckosText>
-        <GeckosText style={[styles.activeStatusBadge, { color: getStatusColor(liveStatus) }]}>
-          {getStatusLabel(liveStatus)}
+        <GeckosText style={[styles.activeStatusBadge, { color: getStatusColor(displayStatus) }]}>
+          {getStatusLabel(displayStatus)}
         </GeckosText>
       </View>
       <GeckosText style={styles.activeCardMeta}>
@@ -117,7 +124,7 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
       </GeckosText>
 
       <View style={styles.miniTimeline}>
-        {STATUS_STEPS.map((step, idx) => {
+        {CUSTOMER_STATUS_STEPS.map((step, idx) => {
           const done   = idx <= currentIdx;
           const active = idx === currentIdx;
           return (

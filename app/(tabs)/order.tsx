@@ -25,8 +25,6 @@ import { REWARDS, type RewardConfig } from "@/src/config/rewards";
 const PHONE_DISPLAY = "580-564-9599";
 const PHONE_DIAL = "5805649599";
 
-type OrderState = "cart" | "submitting";
-
 function CartItemRow({
   item,
   onRemove,
@@ -142,143 +140,9 @@ function EmptyCart() {
   );
 }
 
-const STATUS_STEPS = [
-  { key: "new", label: "Order Received", icon: "receipt-outline" as const },
-  { key: "accepted", label: "Accepted", icon: "checkmark-circle-outline" as const },
-  { key: "preparing", label: "Preparing", icon: "flame-outline" as const },
-  { key: "ready", label: "Ready for Pickup", icon: "bag-check-outline" as const },
-  { key: "picked_up", label: "Picked Up", icon: "checkmark-done-outline" as const },
-];
-
-function OrderTracker({
-  orderId,
-  onDone,
-  onClose,
-}: {
-  orderId: string;
-  onDone: () => void;
-  onClose: () => void;
-}) {
-  const [status, setStatus] = useState("new");
-
-  useEffect(() => {
-    supabase
-      .from("orders")
-      .select("status")
-      .eq("id", orderId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) { onDone(); return; }
-        if (data.status) setStatus(data.status);
-      });
-
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        (payload) => {
-          if (payload.new?.status) setStatus(payload.new.status as string);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        () => { onDone(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [orderId, onDone]);
-
-  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
-  const isCancelled = status === "cancelled";
-  const isPickedUp = status === "picked_up";
-
-  return (
-    <ScrollView contentContainerStyle={styles.trackerContainer} showsVerticalScrollIndicator={false}>
-      <View style={styles.confirmedIconWrap}>
-        <Ionicons
-          name={isCancelled ? "close-circle" : isPickedUp ? "checkmark-done-circle" : "time-outline"}
-          size={56}
-          color={isCancelled ? GeckosColors.chiliRed : GeckosColors.geckoGreen}
-        />
-      </View>
-
-      <GeckosText style={styles.confirmedTitle}>
-        {isCancelled ? "Order Cancelled" : isPickedUp ? "Order Complete!" : "Order In Progress"}
-      </GeckosText>
-      <GeckosText style={styles.confirmedBody}>
-        {isCancelled
-          ? "Your order has been cancelled. Please contact the restaurant if you have questions."
-          : isPickedUp
-          ? "Thanks for ordering from Gecko's! Enjoy your meal."
-          : "We're working on your order. Status updates appear in real time."}
-      </GeckosText>
-
-      {!isCancelled && (
-        <View style={styles.statusTimeline}>
-          {STATUS_STEPS.map((step, idx) => {
-            const isCompleted = idx <= currentIdx;
-            const isActive = idx === currentIdx;
-            return (
-              <View key={step.key} style={styles.statusStep}>
-                <View style={styles.statusStepIndicator}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      isCompleted && styles.statusDotCompleted,
-                      isActive && styles.statusDotActive,
-                    ]}
-                  >
-                    <Ionicons
-                      name={step.icon}
-                      size={16}
-                      color={isCompleted ? "#fff" : GeckosColors.mutedText}
-                    />
-                  </View>
-                  {idx < STATUS_STEPS.length - 1 && (
-                    <View
-                      style={[
-                        styles.statusLine,
-                        idx < currentIdx && styles.statusLineCompleted,
-                      ]}
-                    />
-                  )}
-                </View>
-                <GeckosText
-                  style={[
-                    styles.statusLabel,
-                    isCompleted && styles.statusLabelCompleted,
-                    isActive && styles.statusLabelActive,
-                  ]}
-                >
-                  {step.label}
-                </GeckosText>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      <Pressable
-        onPress={isPickedUp || isCancelled ? onDone : onClose}
-        style={({ pressed }) => [styles.browseButton, pressed && styles.buttonPressed]}
-      >
-        <GeckosText style={styles.browseButtonText}>
-          {isPickedUp || isCancelled ? "Done" : "Close Tracker"}
-        </GeckosText>
-      </Pressable>
-    </ScrollView>
-  );
-}
-
 export default function OrderScreen() {
-  const { items, removeItem, updateQuantity, clearCart, subtotal } = useCart();
+  const { items, removeItem, updateQuantity, subtotal } = useCart();
   const { session, profile, isLoggedIn } = useAuth();
-  const [orderState, setOrderState] = useState<OrderState>("cart");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pickupTime, setPickupTime] = useState("");
@@ -620,11 +484,11 @@ export default function OrderScreen() {
             <View style={styles.bottomBar}>
               <Pressable
                 onPress={handlePlaceOrder}
-                disabled={orderState === "submitting" || acceptingOrders === false}
+                disabled={acceptingOrders === false}
                 style={({ pressed }) => [
                   styles.placeOrderButton,
                   pressed && styles.buttonPressed,
-                  (orderState === "submitting" || acceptingOrders === false) && styles.buttonDisabled,
+                  acceptingOrders === false && styles.buttonDisabled,
                 ]}
               >
                 <Ionicons

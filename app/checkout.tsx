@@ -23,6 +23,10 @@ import { supabase } from "@/src/lib/supabase";
 const EDGE_URL =
   `${(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "")}/functions/v1/create-payment-intent`;
 
+// App Review bypass — only active for the designated reviewer account.
+// Set EXPO_PUBLIC_REVIEWER_EMAIL in EAS secrets / .env.local before submitting.
+const REVIEWER_EMAIL = process.env.EXPO_PUBLIC_REVIEWER_EMAIL ?? "";
+
 /* ─── Screen ─────────────────────────────────────────────── */
 
 export default function CheckoutScreen() {
@@ -105,6 +109,22 @@ export default function CheckoutScreen() {
         return;
       }
 
+      // App Review bypass: skip Stripe for the designated reviewer account only.
+      if (REVIEWER_EMAIL && session?.user?.email === REVIEWER_EMAIL) {
+        const { error: insertError } = await supabase.from("orders").insert(
+          buildOrderPayload({
+            payment_method: "stripe",
+            payment_status: "paid",
+            platform_fee_cents: 0,
+          })
+        );
+        if (insertError) throw insertError;
+        await deductRewardIfSelected();
+        clearCart();
+        router.replace("/(tabs)/order");
+        return;
+      }
+
       // 1. Fetch client secret from Edge Function
       const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
       const res = await fetch(EDGE_URL, {
@@ -162,7 +182,7 @@ export default function CheckoutScreen() {
       router.replace("/(tabs)/order");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Please try again.";
-      Alert.alert("Payment Failed", `${msg}\n\nYou can also pay when you pick up.`);
+      Alert.alert("Payment Failed", msg);
     } finally {
       setLoading(false);
     }
