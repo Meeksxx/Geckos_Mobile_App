@@ -132,7 +132,7 @@ function ActiveOrderCard({ order, onStatusChange }: { order: PastOrder; onStatus
               {idx > 0 && (
                 <View style={[styles.miniLineLeft, idx <= currentIdx && styles.miniLineDone]} />
               )}
-              {idx < STATUS_STEPS.length - 1 && (
+              {idx < CUSTOMER_STATUS_STEPS.length - 1 && (
                 <View style={[styles.miniLineRight, idx < currentIdx && styles.miniLineDone]} />
               )}
               <View style={[styles.miniDot, done && styles.miniDotDone, active && styles.miniDotActive]}>

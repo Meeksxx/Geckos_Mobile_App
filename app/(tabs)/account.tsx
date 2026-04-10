@@ -36,12 +36,21 @@ function SignedOut() {
         <GeckosText style={styles.primaryButtonText}>Sign In / Sign Up</GeckosText>
       </Pressable>
 
-      <Pressable
-        onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
-        style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
-      >
-        <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
-      </Pressable>
+      <View style={styles.legalLinks}>
+        <Pressable
+          onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
+          style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+        >
+          <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
+        </Pressable>
+        <GeckosText style={styles.privacyLinkText}> · </GeckosText>
+        <Pressable
+          onPress={() => router.push("/terms" as any)}
+          style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+        >
+          <GeckosText style={styles.privacyLinkText}>Terms of Service</GeckosText>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -211,12 +220,21 @@ function SignedIn() {
         </GeckosText>
       </Pressable>
 
-      <Pressable
-        onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
-        style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
-      >
-        <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
-      </Pressable>
+      <View style={styles.legalLinks}>
+        <Pressable
+          onPress={() => Linking.openURL("https://www.privacypolicies.com/live/8ae4bec2-b302-4d4e-880d-59c91b837ea7").catch(() => {})}
+          style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+        >
+          <GeckosText style={styles.privacyLinkText}>Privacy Policy</GeckosText>
+        </Pressable>
+        <GeckosText style={styles.privacyLinkText}> · </GeckosText>
+        <Pressable
+          onPress={() => router.push("/terms" as any)}
+          style={({ pressed }) => [styles.privacyLink, pressed && styles.pressed]}
+        >
+          <GeckosText style={styles.privacyLinkText}>Terms of Service</GeckosText>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -464,7 +482,13 @@ const styles = StyleSheet.create({
     color: GeckosColors.chiliRed,
   },
 
-  // Privacy policy
+  // Legal links
+  legalLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
   privacyLink: {
     alignItems: "center",
     paddingVertical: 12,

@@ -266,7 +266,7 @@ export default function CheckoutScreen() {
         </Pressable>
 
         <GeckosText style={styles.subtext}>
-          Debit · Credit · Apple Pay · Google Pay · Secure via Stripe
+          Debit · Credit · Secure via Stripe
         </GeckosText>
       </ScrollView>
     </>
