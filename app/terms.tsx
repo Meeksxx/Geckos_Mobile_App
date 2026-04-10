@@ -1,11 +1,13 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GeckosText } from "@/src/components/GeckosText";
 import { GeckosColors } from "@/src/theme/colors";
 
 export default function TermsScreen() {
+  const insets = useSafeAreaInsets();
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 16 }]}>
       <GeckosText style={styles.h1}>Terms of Service</GeckosText>
       <GeckosText style={styles.meta}>Effective Date: April 9, 2026</GeckosText>
       <GeckosText style={styles.body}>
