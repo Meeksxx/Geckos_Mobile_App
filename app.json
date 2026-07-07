@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gecko's at Lake Texoma",
     "slug": "Geckos_Mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "scheme": "geckosmobile",
     "userInterfaceStyle": "automatic",
