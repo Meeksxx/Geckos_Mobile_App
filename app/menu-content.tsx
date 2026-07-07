@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
+import { File } from "expo-file-system";
 import type { Session } from "@supabase/supabase-js";
 
 import { AppContainer } from "@/src/components/AppContainer";
@@ -438,11 +439,10 @@ export default function MenuContentScreen() {
     try {
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
       const fileName = `item-${Date.now()}.${ext}`;
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await new File(asset.uri).arrayBuffer();
       const { error: uploadError } = await supabase.storage
         .from("menu-item-images")
-        .upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+        .upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage
         .from("menu-item-images")
@@ -617,11 +617,10 @@ export default function MenuContentScreen() {
     try {
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
       const fileName = `category-${Date.now()}.${ext}`;
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await new File(asset.uri).arrayBuffer();
       const { error: uploadError } = await supabase.storage
         .from("menu-item-images")
-        .upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+        .upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage
         .from("menu-item-images")
@@ -774,9 +773,8 @@ export default function MenuContentScreen() {
     try {
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
       const fileName = `special-${Date.now()}.${ext}`;
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      const { error: uploadError } = await supabase.storage.from("menu-item-images").upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+      const arrayBuffer = await new File(asset.uri).arrayBuffer();
+      const { error: uploadError } = await supabase.storage.from("menu-item-images").upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("menu-item-images").getPublicUrl(fileName);
       setSpecialForm((p) => ({ ...p, imageUri: urlData.publicUrl }));

@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
+import { File } from "expo-file-system";
 import type { Session } from "@supabase/supabase-js";
 
 import { AppContainer } from "@/src/components/AppContainer";
@@ -140,11 +141,12 @@ function AnnouncementForm({
     try {
       const ext = asset.uri.split(".").pop() ?? "jpg";
       const fileName = `announcement-${Date.now()}.${ext}`;
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      // fetch(uri).blob() silently uploads an empty body on-device — read the
+      // file directly instead so real bytes make it to Supabase Storage.
+      const arrayBuffer = await new File(asset.uri).arrayBuffer();
       const { error } = await supabase.storage
         .from("announcement-images")
-        .upload(fileName, blob, { contentType: `image/${ext}`, upsert: true });
+        .upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (error) throw error;
       const { data: urlData } = supabase.storage
         .from("announcement-images")
