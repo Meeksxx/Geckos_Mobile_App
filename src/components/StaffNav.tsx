@@ -37,7 +37,12 @@ export function StaffNav({ active }: { active: Screen }) {
               size={18}
               color={isActive ? GeckosColors.geckoGreen : GeckosColors.mutedText}
             />
-            <GeckosText style={[styles.label, isActive && styles.labelActive]}>
+            <GeckosText
+              style={[styles.label, isActive && styles.labelActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {item.label}
             </GeckosText>
           </Pressable>
