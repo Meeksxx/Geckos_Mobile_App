@@ -8,7 +8,11 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
 });
 
 const CONNECTED_ACCOUNT_ID = Deno.env.get("STRIPE_CONNECT_ACCOUNT_ID")!;
-const PLATFORM_FEE = 0.03; // 3%
+const PLATFORM_FEE = 0.03; // 3% tech fee, kept by the platform
+const PROCESSING_FEE_RATE = 0.029; // 2.9% + $0.30 — offsets Stripe's card fee
+const PROCESSING_FEE_FIXED = 30;
+const SERVICE_FEE_RATE = 0.015; // 1.5% customer share, kept by the platform
+const TAX_RATE = 0.095; // 9.5% Oklahoma sales tax — passed through to the restaurant
 const IS_TEST_MODE = (Deno.env.get("STRIPE_SECRET_KEY") ?? "").startsWith("sk_test_");
 
 const CORS = {
@@ -24,22 +28,38 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { subtotalCents, totalCents, customerName, customerPhone } = await req.json() as {
+    const { subtotalCents, customerName, customerPhone } = await req.json() as {
       subtotalCents: number;
-      totalCents: number;
       customerName: string;
       customerPhone: string;
     };
 
-    if (!totalCents || totalCents < 50) {
+    if (!subtotalCents || subtotalCents < 1) {
       return new Response(
         JSON.stringify({ error: "Invalid amount — minimum is $0.50" }),
         { status: 400, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
 
-    // 3% platform fee on the discounted subtotal (before processing fee)
-    const applicationFeeAmount = Math.round(subtotalCents * PLATFORM_FEE);
+    // Recompute the full breakdown server-side from subtotalCents — never trust
+    // a client-supplied total. Must mirror the math in app/checkout.tsx exactly.
+    const processingFeeCents = Math.round(subtotalCents * PROCESSING_FEE_RATE) + PROCESSING_FEE_FIXED;
+    const serviceFeeCents = Math.round(subtotalCents * SERVICE_FEE_RATE);
+    const taxCents = Math.round(subtotalCents * TAX_RATE);
+    const totalCents = subtotalCents + processingFeeCents + serviceFeeCents + taxCents;
+    const techFeeCents = Math.round(subtotalCents * PLATFORM_FEE);
+
+    if (totalCents < 50) {
+      return new Response(
+        JSON.stringify({ error: "Invalid amount — minimum is $0.50" }),
+        { status: 400, headers: { ...CORS, "Content-Type": "application/json" } }
+      );
+    }
+
+    // The platform keeps the processing fee + service fee (they cover Stripe's
+    // cut and never belong to the restaurant) plus its own 3% tech fee. The
+    // connected account is left with the food subtotal + full sales tax.
+    const applicationFeeAmount = processingFeeCents + serviceFeeCents + techFeeCents;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,

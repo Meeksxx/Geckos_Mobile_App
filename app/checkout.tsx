@@ -136,7 +136,6 @@ export default function CheckoutScreen() {
         },
         body: JSON.stringify({
           subtotalCents: discountedSubtotalCents,
-          totalCents,
           customerName: params.customerName,
           customerPhone: params.customerPhone,
         }),
