@@ -20,6 +20,7 @@
       "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Gecko's",
         "NSPhotoLibraryUsageDescription": "Used to upload photos for menu items, categories, specials, and announcements."
       }
     },
