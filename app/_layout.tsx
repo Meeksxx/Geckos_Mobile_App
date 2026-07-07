@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Stack, usePathname } from "expo-router";
+import React from "react";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-import { Animated, Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { GeckosColors } from "@/src/theme/colors";
 import { AuthProvider } from "@/src/context/AuthContext";
@@ -24,29 +24,6 @@ function PushRegistrar() {
 }
 
 export default function RootLayout() {
-  const pathname = usePathname();
-  const isKitchenRoute = pathname === "/kitchen";
-  const [showLaunch, setShowLaunch] = useState(true);
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (isKitchenRoute) {
-      setShowLaunch(false);
-      return;
-    }
-
-    // Hold the launch screen for a moment so it is visible in Expo Go.
-    const timer = setTimeout(() => {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 350,
-        useNativeDriver: true,
-      }).start(() => setShowLaunch(false));
-    }, 2600);
-
-    return () => clearTimeout(timer);
-  }, [isKitchenRoute, opacity]);
-
   return (
     <ErrorBoundary>
     <StripeWrapper>
@@ -60,9 +37,9 @@ export default function RootLayout() {
           <Stack.Screen name="item" options={{ presentation: "modal" }} />
           <Stack.Screen name="auth" options={{ presentation: "modal" }} />
           <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
-          <Stack.Screen name="kitchen" />
-          <Stack.Screen name="content" />
-          <Stack.Screen name="menu-content" />
+          <Stack.Screen name="kitchen" options={{ animation: "fade", animationDuration: 180 }} />
+          <Stack.Screen name="content" options={{ animation: "fade", animationDuration: 180 }} />
+          <Stack.Screen name="menu-content" options={{ animation: "fade", animationDuration: 180 }} />
         </Stack>
 
         {/* Keep status bar consistent with dark theme */}
@@ -73,17 +50,6 @@ export default function RootLayout() {
 
         {/* First-launch notification permission prompt */}
         <NotificationPrompt />
-
-        {/* In-app launch overlay (shows in Expo Go) */}
-        {showLaunch && (
-          <Animated.View style={[styles.launchOverlay, { opacity }]}>
-            <Image
-              source={require("../assets/images/splash1.png")}
-              style={styles.launchLogo}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        )}
       </View>
     </CartProvider>
     </MenuProvider>
@@ -97,29 +63,5 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: GeckosColors.background,
-  },
-
-  launchOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0B0C0F",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    zIndex: 9999,
-  },
-
-  launchLogo: {
-    width: "86%",
-    maxWidth: 520,
-    height: 320,
-    marginBottom: 68,
-  },
-
-  launchText: {
-    color: "#F2F3F5",
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-    letterSpacing: 0.2,
   },
 });
