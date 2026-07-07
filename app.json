@@ -39,6 +39,7 @@
     },
     "plugins": [
       "./plugins/withPrivacyManifest",
+      ["./plugins/withAndroidAppLabel", { "label": "Gecko's" }],
       "expo-router",
       [
         "expo-notifications",
