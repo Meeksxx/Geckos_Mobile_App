@@ -509,7 +509,7 @@ export default function HomeScreen() {
                         resizeMode="cover"
                       />
                     ) : null}
-                    <View style={styles.announcementContent}>
+                    <View style={[styles.announcementContent, !item.body && styles.announcementContentCentered]}>
                       <GeckosText style={styles.announcementEmoji}>{item.emoji}</GeckosText>
                       <View style={styles.announcementBody}>
                         <GeckosText style={styles.announcementTitle}>{item.title}</GeckosText>
@@ -931,6 +931,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
   },
+  announcementContentCentered: {
+    alignItems: "center",
+  },
   announcementEmoji: {
     fontSize: 26,
     lineHeight: 32,
@@ -940,9 +943,11 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   announcementTitle: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "900",
     color: GeckosColors.text,
+    letterSpacing: 0.2,
+    lineHeight: 20,
   },
   announcementText: {
     fontSize: 13,
