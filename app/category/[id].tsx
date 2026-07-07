@@ -26,7 +26,7 @@ import { useMenu } from "@/src/context/MenuContext";
 import { GeckosColors } from "@/src/theme/colors";
 
 /** Header sizing (same approach as menu.tsx) */
-const HEADER_BAR_HEIGHT = 44; // pinch here (40–52)
+const HEADER_BAR_HEIGHT = 48; // pinch here (40–52) — bumped for iOS 26 "Liquid Glass" header sizing
 const LIST_TOP_GAP = 0; // content starts below the transparent header
 
 const IMAGE_MAP_BY_CATEGORY: Record<string, Record<string, any>> = {
